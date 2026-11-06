@@ -6,10 +6,18 @@ import type { Activity } from "../state";
 const API = "https://www.strava.com/api/v3";
 const OAUTH = "https://www.strava.com/oauth";
 
-const clientId = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID;
-const clientSecret = process.env.STRAVA_CLIENT_SECRET;
+// Le Client ID est accepté sous les deux noms, la confusion étant fréquente.
+export const clientId =
+  (process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID ?? process.env.STRAVA_CLIENT_ID)?.trim() || undefined;
+const clientSecret = process.env.STRAVA_CLIENT_SECRET?.trim() || undefined;
 
 export const stravaConfigured = Boolean(clientId && clientSecret);
+
+/** Variables absentes côté serveur, pour l'aide au diagnostic dans le profil. */
+export const stravaMissing = [
+  ...(clientId ? [] : ["NEXT_PUBLIC_STRAVA_CLIENT_ID"]),
+  ...(clientSecret ? [] : ["STRAVA_CLIENT_SECRET"]),
+];
 
 interface TokenResponse {
   access_token: string;

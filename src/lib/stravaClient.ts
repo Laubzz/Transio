@@ -27,6 +27,10 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export interface StravaStatus {
   configured: boolean;
+  /** Variables manquantes côté serveur quand Strava n'est pas configuré. */
+  missing?: string[];
+  /** Client ID de l'application Strava, fourni par le serveur. */
+  clientId?: string;
   connected: boolean;
   athleteId?: number | null;
 }
@@ -34,8 +38,9 @@ export interface StravaStatus {
 export const stravaStatus = () => call<StravaStatus>("/api/strava/status");
 
 /** Ouvre la page d'autorisation Strava ; elle revient sur /strava avec un code. */
-export function startStravaConnect() {
-  if (!stravaClientId) return;
+export function startStravaConnect(serverClientId?: string) {
+  const id = serverClientId ?? stravaClientId;
+  if (!id) return;
   const nonce = crypto.randomUUID();
   try {
     sessionStorage.setItem(STATE_KEY, nonce);
@@ -43,7 +48,7 @@ export function startStravaConnect() {
     // sans stockage de session, la vérification du retour échouera proprement
   }
   const params = new URLSearchParams({
-    client_id: stravaClientId,
+    client_id: id,
     redirect_uri: `${window.location.origin}/strava`,
     response_type: "code",
     approval_prompt: "auto",

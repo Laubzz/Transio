@@ -260,9 +260,21 @@ function StravaCard({ state }: { state: AppState }) {
       ) : !status ? (
         <p className="mt-1 text-sm text-muted">Vérification…</p>
       ) : !status.configured ? (
-        <p className="mt-1 text-sm text-muted">
-          La connexion à Strava n&apos;est pas encore activée sur ce site.
-        </p>
+        <div className="mt-1 text-sm text-muted">
+          <p>La connexion à Strava n&apos;est pas encore activée sur ce site.</p>
+          {status.missing && status.missing.length > 0 && (
+            <p className="mt-2">
+              Variable{status.missing.length > 1 ? "s" : ""} absente
+              {status.missing.length > 1 ? "s" : ""} côté serveur :{" "}
+              {status.missing.map((m) => (
+                <code key={m} className="mr-1 rounded bg-night px-1.5 py-0.5 text-xs text-origin">
+                  {m}
+                </code>
+              ))}
+              . Ajoute-la dans Vercel (environnement Production), puis redéploie.
+            </p>
+          )}
+        </div>
       ) : status.connected ? (
         <>
           <p className="mt-1 text-sm text-muted">
@@ -304,7 +316,10 @@ function StravaCard({ state }: { state: AppState }) {
             Connecte ton compte Strava pour importer tes sorties : durée, distance, allure et
             fréquence cardiaque.
           </p>
-          <Button className="mt-4 bg-none bg-[#fc4c02] text-white" onClick={startStravaConnect}>
+          <Button
+            className="mt-4 bg-none bg-[#fc4c02] text-white"
+            onClick={() => startStravaConnect(status.clientId)}
+          >
             Connecter Strava
           </Button>
         </>
