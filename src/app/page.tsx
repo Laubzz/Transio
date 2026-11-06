@@ -1,5 +1,6 @@
 import { GOAL_LABEL, ORIGIN_LABEL, generatePlan } from "@/engine";
 import { VELO_TO_10K } from "@/engine/fixtures";
+import { HomeCta } from "@/components/HomeCta";
 import { WeekCard } from "@/components/WeekCard";
 
 const plan = generatePlan(VELO_TO_10K);
@@ -9,7 +10,7 @@ export default function Home() {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6">
       <section className="mb-12">
-        <p className="mb-4 font-mono text-xs tracking-[0.3em] text-target">BIENTÔT DISPONIBLE</p>
+        <p className="mb-4 font-mono text-xs tracking-[0.3em] text-target">VERSION BÊTA</p>
         <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl">
           Trans
           <span className="bg-gradient-to-r from-origin to-target bg-clip-text text-transparent">
@@ -20,6 +21,9 @@ export default function Home() {
           Change de sport, garde tes acquis. Le plan d&apos;entraînement qui part de ton ancien
           sport, avance progressivement et s&apos;ajuste chaque semaine.
         </p>
+        <div className="mt-8">
+          <HomeCta />
+        </div>
       </section>
 
       <section>

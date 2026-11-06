@@ -30,11 +30,25 @@ npm run dev        # http://localhost:3000
 ```
 src/
   app/          pages Next.js (App Router), manifest et icônes de la web app
-  components/   composants d'interface
+  components/   composants d'interface et écrans
+  lib/          dates, état de l'app (plan, retours, bilans) et sauvegarde locale
   engine/       moteur de plan, en TypeScript pur, sans dépendance à l'interface
 public/         icônes et service worker (sw.js)
 video/          vidéo de présentation et ses sources
 ```
+
+## Les écrans de la V1
+
+| Écran         | Route            | Rôle                                                                                    |
+| ------------- | ---------------- | --------------------------------------------------------------------------------------- |
+| Accueil       | `/`              | Présentation et plan d'exemple                                                          |
+| Questionnaire | `/questionnaire` | 4 étapes : sport d'origine, blessures, objectif et date de début, semaine type          |
+| Aujourd'hui   | `/aujourdhui`    | Séance du jour, retour de séance (faite, difficulté 1–10, gêne ou douleur, commentaire) |
+| Planning      | `/planning`      | Frise des semaines, semaine jour par jour, retours, bilan de semaine                    |
+
+Le bilan d'une semaine terminée applique `adjustPlan` au reste du plan. Pour l'instant, le plan
+et les retours sont enregistrés dans le navigateur (`src/lib/store.ts`), en attendant la base
+de données.
 
 ## Le moteur de plan (`src/engine`)
 
