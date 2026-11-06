@@ -9,12 +9,16 @@ import {
   type InjuryZone,
   type OriginSport,
   type Profile,
+  type StrengthPlace,
+  formatDuration,
+  parseDuration,
 } from "@/engine";
 import { daysBetween, mondayOf, nextMonday } from "@/lib/dates";
 import { GOAL_HINT, INJURY_LABEL, ORIGIN_HINT } from "@/lib/labels";
 import { createState } from "@/lib/state";
 import { saveState, useAppState, useToday } from "@/lib/store";
-import { Button, Kicker, OptionCard, Segmented } from "./ui";
+import { useAccount } from "@/lib/sync";
+import { Button, ButtonLink, Kicker, OptionCard, Segmented } from "./ui";
 
 const STEPS = ["Ton sport", "Ton corps", "Ton objectif", "Ta semaine"] as const;
 const SPORTS = Object.keys(ORIGIN_LABEL) as OriginSport[];
@@ -41,8 +45,30 @@ export function Questionnaire() {
   const [runDays, setRunDays] = useState<2 | 3 | 4>(3);
   const [keepOrigin, setKeepOrigin] = useState(true);
   const [strength, setStrength] = useState<0 | 1 | 2>(1);
+  const [place, setPlace] = useState<StrengthPlace>("maison");
+  const [ref5k, setRef5k] = useState("");
+  const account = useAccount();
 
-  if (!today) return null;
+  if (!today || account.auth === "loading") return null;
+  if (account.auth === "signed-out") {
+    return (
+      <div className="mx-auto w-full max-w-md px-4 py-16 text-center">
+        <h1 className="text-2xl font-bold">Crée d&apos;abord ton compte</h1>
+        <p className="mt-2 text-muted">
+          Ton plan sera enregistré dans ton compte et disponible sur tous tes appareils.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <ButtonLink href="/inscription">Créer un compte</ButtonLink>
+          <ButtonLink href="/connexion" variant="ghost">
+            Se connecter
+          </ButtonLink>
+        </div>
+      </div>
+    );
+  }
+  const ref5kSec = ref5k.trim() ? parseDuration(ref5k) : undefined;
+  const ref5kOk =
+    ref5kSec !== null && (ref5kSec === undefined || (ref5kSec >= 12 * 60 && ref5kSec <= 60 * 60));
   const year = Number(today.slice(0, 4));
   const startDate = start ?? nextMonday(today);
   const startOk = /^\d{4}-\d{2}-\d{2}$/.test(startDate) && daysBetween(today, startDate) >= -6;
@@ -69,6 +95,8 @@ export function Questionnaire() {
       runDaysPerWeek: runDays,
       keepOriginSport: origin !== "reprise" && keepOrigin,
       strengthPerWeek: strength,
+      strengthPlace: place,
+      reference5kSec: ref5kSec ?? undefined,
     };
     saveState(createState(profile, mondayOf(startDate)));
     router.push("/aujourdhui");
@@ -224,6 +252,30 @@ export function Questionnaire() {
               </span>
             )}
           </label>
+          <label className="block">
+            <span className="mb-2 block text-sm font-semibold">
+              Ton temps sur 5 km <span className="font-normal text-muted">(facultatif)</span>
+            </span>
+            <input
+              inputMode="numeric"
+              placeholder="ex. 27:30"
+              value={ref5k}
+              onChange={(e) => setRef5k(e.target.value)}
+              className={`${inputClass} max-w-40`}
+            />
+            <span className="mt-1 block text-sm text-muted">
+              {ref5kOk && ref5kSec
+                ? `Soit ${formatDuration(ref5kSec / 5)} /km : tes allures seront calculées à partir de ce temps.`
+                : ref5kOk
+                  ? "Sans temps, les séances se font au ressenti. Tu pourras l'ajouter plus tard ou l'estimer avec Strava."
+                  : ""}
+            </span>
+            {!ref5kOk && (
+              <span className="mt-1 block text-sm text-warn">
+                Écris le temps sous la forme 27:30.
+              </span>
+            )}
+          </label>
         </section>
       )}
 
@@ -242,6 +294,18 @@ export function Questionnaire() {
             onChange={setStrength}
             options={[0, 1, 2].map((n) => ({ value: n as 0 | 1 | 2, label: String(n) }))}
           />
+          {strength > 0 && (
+            <Segmented
+              label="Où préfères-tu faire ton renforcement ?"
+              value={place}
+              onChange={setPlace}
+              options={[
+                { value: "maison", label: "À la maison" },
+                { value: "salle", label: "En salle de muscu" },
+                { value: "les-deux", label: "Les deux" },
+              ]}
+            />
+          )}
           {origin !== "reprise" && (
             <Segmented
               label={`Garder une séance de ${ORIGIN_LABEL[origin].toLowerCase()} chaque semaine ?`}
@@ -265,9 +329,14 @@ export function Questionnaire() {
           Retour
         </Button>
         {step < STEPS.length - 1 ? (
-          <Button onClick={() => setStep((s) => s + 1)}>Continuer</Button>
+          <Button
+            onClick={() => setStep((s) => s + 1)}
+            disabled={step === 2 && (!startOk || !ref5kOk)}
+          >
+            Continuer
+          </Button>
         ) : (
-          <Button onClick={finish} disabled={!startOk}>
+          <Button onClick={finish} disabled={!startOk || !ref5kOk}>
             Générer mon plan
           </Button>
         )}

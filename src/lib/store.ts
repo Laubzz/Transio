@@ -5,16 +5,18 @@ import { toISO, type ISODate } from "./dates";
 import { parseState, type AppState } from "./state";
 
 /**
- * Sauvegarde locale (localStorage) de l'état de l'app, en attendant Supabase.
+ * État de l'app gardé sur l'appareil (localStorage). Avec un compte, `sync.ts` le recopie
+ * dans la base et le recharge sur les autres appareils ; cette copie locale sert de cache.
  * Si le navigateur refuse le stockage, l'état reste en mémoire pour la session.
  */
 const KEY = "transio:v1";
 const listeners = new Set<() => void>();
+const changeHandlers = new Set<(state: AppState | null) => void>();
 let cachedRaw: string | null | undefined;
 let cached: AppState | null = null;
 let memoryOnly = false;
 
-function read(): AppState | null {
+export function readState(): AppState | null {
   if (memoryOnly) return cached;
   let raw: string | null;
   try {
@@ -39,7 +41,11 @@ function subscribe(cb: () => void) {
   };
 }
 
-export function saveState(state: AppState | null) {
+/**
+ * Enregistre l'état. Par défaut le changement est aussi envoyé vers le compte ;
+ * `fromRemote` sert quand l'état vient du compte (ou à la déconnexion) pour ne pas le renvoyer.
+ */
+export function saveState(state: AppState | null, opts: { fromRemote?: boolean } = {}) {
   const raw = state ? JSON.stringify(state) : null;
   try {
     if (raw) localStorage.setItem(KEY, raw);
@@ -51,11 +57,18 @@ export function saveState(state: AppState | null) {
   cachedRaw = raw;
   cached = state;
   listeners.forEach((l) => l());
+  if (!opts.fromRemote) changeHandlers.forEach((h) => h(state));
+}
+
+/** Prévient à chaque changement fait dans l'app (utilisé par la synchronisation). */
+export function onLocalChange(handler: (state: AppState | null) => void) {
+  changeHandlers.add(handler);
+  return () => changeHandlers.delete(handler);
 }
 
 /** `undefined` tant que le navigateur n'a pas été lu (rendu serveur, hydratation). */
 export function useAppState(): AppState | null | undefined {
-  return useSyncExternalStore(subscribe, read, () => undefined);
+  return useSyncExternalStore(subscribe, readState, () => undefined);
 }
 
 function subscribeClock(cb: () => void) {

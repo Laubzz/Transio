@@ -30,7 +30,14 @@ export interface Profile {
   /** Garder une séance du sport d'origine chaque semaine (double sport). */
   keepOriginSport: boolean;
   strengthPerWeek: 0 | 1 | 2;
+  /** Où se fait le renforcement (absent sur les anciens profils : « maison »). */
+  strengthPlace?: StrengthPlace;
+  /** Temps de référence sur 5 km, en secondes, pour calculer les allures. */
+  reference5kSec?: number;
 }
+
+/** Renforcement à la maison (poids du corps), en salle de muscu, ou en alternant les deux. */
+export type StrengthPlace = "maison" | "salle" | "les-deux";
 
 export type SessionKind =
   | "course-marche"

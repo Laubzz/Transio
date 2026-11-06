@@ -58,6 +58,21 @@ export interface AppState {
   /** Retours par séance, clé `semaine-jour`. */
   feedback: Record<string, StoredFeedback>;
   reviews: WeekReview[];
+  /** Activités importées de Strava. */
+  activities?: Activity[];
+}
+
+/** Activité importée (Strava), réduite à ce dont l'app a besoin. */
+export interface Activity {
+  id: number;
+  /** Jour local de l'activité. */
+  date: ISODate;
+  sport: "course" | "velo" | "renfo" | "autre";
+  name: string;
+  distanceM: number;
+  movingSec: number;
+  avgHr?: number;
+  elevationM?: number;
 }
 
 export const feedbackKey = (weekIndex: number, day: number) => `${weekIndex}-${day}`;
@@ -124,16 +139,81 @@ export function reviewWeek(state: AppState, weekIndex: number): AppState {
   return { ...state, plan, reviews: [...state.reviews, { weekIndex, decision, reasons }] };
 }
 
+/** Valide un état venu du stockage local ou de la base ; `null` s'il est inutilisable. */
+export function normalizeState(value: unknown): AppState | null {
+  const s = value as AppState | null;
+  if (s?.version !== 1 || !Array.isArray(s.plan?.weeks) || typeof s.startDate !== "string") {
+    return null;
+  }
+  return {
+    ...s,
+    feedback: s.feedback ?? {},
+    reviews: s.reviews ?? [],
+    activities: s.activities ?? [],
+  };
+}
+
 /** Relit l'état sauvegardé ; `null` s'il est absent ou illisible. */
 export function parseState(raw: string | null): AppState | null {
   if (!raw) return null;
   try {
-    const s = JSON.parse(raw) as AppState;
-    if (s?.version !== 1 || !Array.isArray(s.plan?.weeks) || typeof s.startDate !== "string") {
-      return null;
-    }
-    return { ...s, feedback: s.feedback ?? {}, reviews: s.reviews ?? [] };
+    return normalizeState(JSON.parse(raw));
   } catch {
     return null;
   }
+}
+
+/** Ajoute des activités importées (sans doublon), de la plus récente à la plus ancienne. */
+export function mergeActivities(state: AppState, incoming: Activity[]): AppState {
+  const byId = new Map((state.activities ?? []).map((a) => [a.id, a]));
+  for (const a of incoming) byId.set(a.id, a);
+  const activities = [...byId.values()].sort((a, b) =>
+    a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id,
+  );
+  return { ...state, activities };
+}
+
+const SPORT_FOR_KIND = (kind: string, impact: boolean): Activity["sport"] =>
+  impact ? "course" : kind === "renfo" ? "renfo" : "velo";
+
+/** Activité du même jour et du même sport qu'une séance prévue (la plus longue s'il y en a plusieurs). */
+export function matchActivity(
+  state: AppState,
+  date: ISODate,
+  kind: string,
+  impact: boolean,
+): Activity | null {
+  const sport = SPORT_FOR_KIND(kind, impact);
+  const same = (state.activities ?? []).filter((a) => a.date === date && a.sport === sport);
+  return same.sort((a, b) => b.movingSec - a.movingSec)[0] ?? null;
+}
+
+/**
+ * Estimation prudente du temps sur 5 km à partir des sorties de course des 6 dernières semaines :
+ * l'équivalent 5 km de la sortie la plus rapide entre 3 et 15 km. Les sorties faciles donnent
+ * une estimation plus lente que la réalité, donc des allures plutôt sûres.
+ */
+export function estimate5k(activities: Activity[], today: ISODate): number | null {
+  const since = new Date(`${today}T12:00:00`);
+  since.setDate(since.getDate() - 42);
+  const limit = since.toISOString().slice(0, 10);
+  const runs = activities.filter(
+    (a) =>
+      a.sport === "course" &&
+      a.date >= limit &&
+      a.distanceM >= 3000 &&
+      a.distanceM <= 15000 &&
+      a.movingSec > 0,
+  );
+  if (!runs.length) return null;
+  const best = Math.min(...runs.map((a) => a.movingSec * (5000 / a.distanceM) ** 1.06));
+  return Math.round(best);
+}
+
+/** Change le temps de référence 5 km sans régénérer le plan. */
+export function setReference5k(state: AppState, sec: number | undefined): AppState {
+  return {
+    ...state,
+    plan: { ...state.plan, profile: { ...state.plan.profile, reference5kSec: sec } },
+  };
 }

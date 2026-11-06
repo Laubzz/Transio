@@ -51,9 +51,42 @@ L'app a une navigation permanente : barre latérale sur ordinateur, onglets en b
 | Journal       | `/journal`       | Historique des séances notées, journal muscu et records                                    |
 | Profil        | `/profil`        | Réponses au questionnaire, refaire le plan, effacer les données                            |
 
-Le bilan d'une semaine terminée applique `adjustPlan` au reste du plan. Pour l'instant, le plan
-et les retours sont enregistrés dans le navigateur (`src/lib/store.ts`), en attendant la base
-de données.
+Le bilan d'une semaine terminée applique `adjustPlan` au reste du plan.
+
+Chaque séance a un **détail** (`src/engine/workout.ts`) : blocs de course avec allures cibles
+(endurance, seuil, VMA, objectif) calculées à partir du temps sur 5 km, ou exercices de renfo
+à la maison, en salle, ou en alternant les deux selon le questionnaire.
+
+## Comptes et synchronisation (Supabase)
+
+Avec un compte (e-mail et mot de passe), le plan, les retours, les bilans et les activités
+importées sont enregistrés dans la table `user_state` et retrouvés sur tous les appareils
+(`src/lib/sync.ts`). Le navigateur garde une copie locale qui sert de cache. Les règles RLS
+limitent chaque utilisateur à ses propres lignes (`supabase/migrations/`).
+
+Sans les variables Supabase, l'app fonctionne sans compte et garde les données dans le navigateur.
+
+## Strava
+
+L'import passe par les routes serveur `src/app/api/strava/*` : connexion OAuth, rafraîchissement
+des jetons (table `strava_tokens`), import des activités. Les activités du jour remplissent le
+retour de séance, et les sorties récentes donnent une estimation prudente du temps sur 5 km.
+Les données Strava ne servent qu'à des calculs par règles, jamais à une IA.
+
+Pour l'activer : créer une application sur https://www.strava.com/settings/api avec comme
+« Authorization Callback Domain » le domaine du site (par exemple `transio.vercel.app`).
+L'accès développeur Strava est limité à 10 athlètes tant que l'app n'est pas validée par Strava.
+
+## Variables d'environnement
+
+Voir `.env.example`. Sur Vercel : Settings → Environment Variables, puis redéployer.
+
+| Variable                               | Rôle                                       |
+| -------------------------------------- | ------------------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`             | URL du projet Supabase                     |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Clé publique Supabase (`sb_publishable_…`) |
+| `NEXT_PUBLIC_STRAVA_CLIENT_ID`         | Client ID de l'application Strava          |
+| `STRAVA_CLIENT_SECRET`                 | Client Secret Strava (serveur uniquement)  |
 
 ## Le moteur de plan (`src/engine`)
 
