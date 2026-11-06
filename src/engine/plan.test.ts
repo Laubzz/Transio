@@ -111,3 +111,31 @@ describe("phaseOf", () => {
     expect(phases.filter((p) => p === "test")).toHaveLength(1);
   });
 });
+
+describe("suite du plan (deuxième cycle)", () => {
+  const next: Profile = { ...VELO_TO_10K, goal: "semi", cycle: 2, startRunMinutes: 100, weeks: 12 };
+  const p2 = generatePlan(next);
+
+  it("repart du volume atteint au cycle précédent", () => {
+    expect(startMinutes(next)).toBe(100);
+    expect(p2.weeks[0].runMinutes).toBe(100);
+  });
+
+  it("ne refait pas de course-marche", () => {
+    for (const w of p2.weeks) {
+      expect(w.sessions.map((s) => s.kind)).not.toContain("course-marche");
+    }
+  });
+
+  it("garde les garde-fous de progression", () => {
+    const b = p2.weeks.filter((w) => !w.deload && w.phase !== "test");
+    for (let i = 1; i < b.length; i++) {
+      expect(b[i].runMinutes - b[i - 1].runMinutes).toBeLessThanOrEqual(
+        maxIncrease(b[i - 1].runMinutes),
+      );
+    }
+    expect(Math.max(...p2.weeks.map((w) => w.runMinutes))).toBeLessThanOrEqual(
+      PEAK_RUN_MINUTES.semi,
+    );
+  });
+});

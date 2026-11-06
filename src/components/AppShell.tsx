@@ -68,7 +68,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             className={`${account.auth === "signed-in" ? "" : "mt-auto"} rounded-xl border border-white/10 p-3 text-xs text-muted`}
           >
             <p className="font-semibold text-ink">
-              {ORIGIN_LABEL[state.plan.profile.originSport]} → course
+              {(state.plan.profile.cycle ?? 1) > 1
+                ? `Cycle ${state.plan.profile.cycle} · après la transition`
+                : `${ORIGIN_LABEL[state.plan.profile.originSport]} → course`}
             </p>
             <p>
               {GOAL_LABEL[state.plan.profile.goal]} · {state.plan.weeks.length} semaines

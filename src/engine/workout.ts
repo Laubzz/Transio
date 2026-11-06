@@ -52,6 +52,7 @@ export const INTENSITY_FEEL: Record<Intensity, string> = {
 const TEST_DISTANCE: Record<Goal, string> = {
   "5k": "5 km",
   "10k": "10 km",
+  semi: "21,1 km (ou un test de 15 km en préparation)",
   trail: "8 à 10 km de trail",
 };
 

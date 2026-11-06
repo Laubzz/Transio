@@ -2,18 +2,17 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+import { ACCOUNTS_ENABLED, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./config";
 
-/** Les comptes sont actifs dès que l'URL et la clé publique Supabase sont configurées. */
-export const accountsEnabled = Boolean(url && key);
+/** Comptes actifs, sauf désactivation explicite (`NEXT_PUBLIC_ACCOUNTS=off`). */
+export const accountsEnabled = ACCOUNTS_ENABLED;
 
 let client: SupabaseClient | null = null;
 
 /** Client Supabase du navigateur ; `null` sans configuration ou côté serveur. */
 export function supabase(): SupabaseClient | null {
   if (!accountsEnabled || typeof window === "undefined") return null;
-  client ??= createClient(url!, key!, {
+  client ??= createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
   });
   return client;

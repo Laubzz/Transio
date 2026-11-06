@@ -6,6 +6,7 @@ import { formatShort, position, sessionDate } from "@/lib/dates";
 import { DAYS_SHORT, PHASE_LABEL, sessionLabel } from "@/lib/labels";
 import { isReviewed, pendingReview } from "@/lib/state";
 import { useAppState, useToday } from "@/lib/store";
+import { CalendarSync } from "./CalendarSync";
 import { SessionPanel, StatusBadge, sessionStatus } from "./SessionPanel";
 import { ReviewPrompt, ReviewResult } from "./WeekReview";
 import { Button, Kicker } from "./ui";
@@ -203,6 +204,8 @@ export function Planning() {
           Le bilan de cette semaine se fera après celui des semaines précédentes.
         </p>
       )}
+
+      <CalendarSync state={state} />
     </div>
   );
 }

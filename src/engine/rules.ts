@@ -39,6 +39,7 @@ export const START_RUN_MINUTES: Record<OriginSport, number> = {
 export const PEAK_RUN_MINUTES: Record<Goal, number> = {
   "5k": 150,
   "10k": 210,
+  semi: 300,
   trail: 240,
 };
 
@@ -93,7 +94,8 @@ export const ORIGIN_LABEL: Record<OriginSport, string> = {
 };
 
 export const GOAL_LABEL: Record<Goal, string> = {
-  "5k": "Premier 5 km",
-  "10k": "Premier 10 km",
-  trail: "Premier trail",
+  "5k": "5 km",
+  "10k": "10 km",
+  semi: "Semi-marathon",
+  trail: "Trail court",
 };

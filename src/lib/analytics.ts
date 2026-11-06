@@ -1,6 +1,6 @@
 import { acuteChronicRatio, dailyLoads, monotony, ratioZone, type DoneSession } from "@/engine";
 import { position, sessionDate, type ISODate } from "./dates";
-import { feedbackKey, type AppState, type StrengthSet } from "./state";
+import { cycles, feedbackKey, type AppState, type StrengthSet } from "./state";
 
 export interface WeekStats {
   weekIndex: number;
@@ -121,7 +121,8 @@ export interface StrengthRecord {
 /** Meilleure charge par exercice (à égalité, le plus de répétitions), les 3 premiers d'abord. */
 export function strengthRecords(state: AppState): StrengthRecord[] {
   const best = new Map<string, StrengthRecord>();
-  for (const e of journal(state)) {
+  const entries = cycles(state).flatMap((c) => journal({ ...state, ...c }));
+  for (const e of entries) {
     for (const r of e.feedback.strength ?? ([] as StrengthSet[])) {
       const key = r.exercise.toLowerCase();
       const cur = best.get(key);

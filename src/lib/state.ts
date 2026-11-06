@@ -7,7 +7,7 @@ import {
   type SessionFeedback,
   type WeekFeedback,
 } from "@/engine";
-import type { ISODate } from "./dates";
+import { addDays, type ISODate } from "./dates";
 
 /** Une ligne du journal muscu. */
 export interface StrengthSet {
@@ -60,6 +60,18 @@ export interface AppState {
   reviews: WeekReview[];
   /** Activités importées de Strava. */
   activities?: Activity[];
+  /** Cycles terminés (plan de transition, puis suites), du plus ancien au plus récent. */
+  history?: ArchivedCycle[];
+  /** Export agenda : heure des séances (« 18:30 »), ou `null` pour la journée entière. */
+  calendar?: { time: string | null };
+}
+
+/** Un cycle terminé, gardé pour le journal et les records. */
+export interface ArchivedCycle {
+  plan: Plan;
+  startDate: ISODate;
+  feedback: Record<string, StoredFeedback>;
+  reviews: WeekReview[];
 }
 
 /** Activité importée (Strava), réduite à ce dont l'app a besoin. */
@@ -215,5 +227,72 @@ export function setReference5k(state: AppState, sec: number | undefined): AppSta
   return {
     ...state,
     plan: { ...state.plan, profile: { ...state.plan.profile, reference5kSec: sec } },
+  };
+}
+
+/** Le cycle en cours suivi des cycles archivés, du plus récent au plus ancien. */
+export function cycles(state: AppState): ArchivedCycle[] {
+  const current = {
+    plan: state.plan,
+    startDate: state.startDate,
+    feedback: state.feedback,
+    reviews: state.reviews,
+  };
+  return [current, ...[...(state.history ?? [])].reverse()];
+}
+
+/** Dernier jour (dimanche) du plan en cours. */
+export const planEnd = (state: AppState) =>
+  addDays(state.startDate, state.plan.weeks.length * 7 - 1);
+
+/** Choix pour la suite du plan, après la transition. */
+export interface NextCycleChoice {
+  goal: Profile["goal"];
+  weeks: number;
+  /** Lundi de la première semaine. */
+  startDate: ISODate;
+  runDaysPerWeek: Profile["runDaysPerWeek"];
+  strengthPerWeek: Profile["strengthPerWeek"];
+  strengthPlace?: Profile["strengthPlace"];
+  keepOriginSport: boolean;
+  reference5kSec?: number;
+}
+
+/** Volume de course de reprise : 90 % de la dernière semaine de construction du cycle. */
+export function resumeMinutes(plan: Plan): number {
+  const builds = plan.weeks.filter((w) => !w.deload && w.phase !== "test");
+  const last = builds.at(-1)?.runMinutes ?? plan.weeks[0].runMinutes;
+  return Math.floor((last * 0.9) / 5) * 5;
+}
+
+/**
+ * Archive le cycle en cours et génère la suite : même profil, nouvel objectif, départ au
+ * volume déjà atteint et sans course-marche. Les activités importées sont conservées.
+ */
+export function startNextCycle(state: AppState, choice: NextCycleChoice): AppState {
+  const prev = state.plan.profile;
+  const profile: Profile = {
+    ...prev,
+    goal: choice.goal,
+    weeks: choice.weeks,
+    runDaysPerWeek: choice.runDaysPerWeek,
+    strengthPerWeek: choice.strengthPerWeek,
+    strengthPlace: choice.strengthPlace ?? prev.strengthPlace,
+    keepOriginSport: choice.keepOriginSport,
+    reference5kSec: choice.reference5kSec ?? prev.reference5kSec,
+    cycle: (prev.cycle ?? 1) + 1,
+    startRunMinutes: resumeMinutes(state.plan),
+  };
+  const archived: ArchivedCycle = {
+    plan: state.plan,
+    startDate: state.startDate,
+    feedback: state.feedback,
+    reviews: state.reviews,
+  };
+  return {
+    ...createState(profile, choice.startDate),
+    activities: state.activities ?? [],
+    calendar: state.calendar,
+    history: [...(state.history ?? []), archived],
   };
 }

@@ -19,6 +19,7 @@ const OFFSETS: Record<Exclude<Intensity, "marche" | "objectif">, [number, number
 const GOAL_OFFSET: Record<Goal, [number, number] | null> = {
   "5k": [-3, 3],
   "10k": [10, 18],
+  semi: [25, 35],
   trail: null, // en trail on court à l'effort, pas à l'allure
 };
 
