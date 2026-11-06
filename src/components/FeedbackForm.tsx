@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import type { Pain, Session } from "@/engine";
 import { RPE_LABEL } from "@/lib/labels";
-import type { StoredFeedback, StrengthSet } from "@/lib/state";
+import type { Activity, StoredFeedback, StrengthSet } from "@/lib/state";
 import { Button, Segmented } from "./ui";
 
 const EMPTY_ROW: StrengthSet = { exercise: "", sets: 0, reps: 0, loadKg: 0 };
@@ -13,11 +13,14 @@ const INPUT =
 /** Retour de séance : faite ou non, difficulté 1 à 10, gêne ou douleur, commentaire. */
 export function FeedbackForm({
   session,
+  activity,
   initial,
   onSave,
   onCancel,
 }: {
   session: Session;
+  /** Activité Strava du jour : elle préremplit la durée. */
+  activity?: Activity | null;
   initial?: StoredFeedback;
   onSave: (fb: StoredFeedback) => void;
   onCancel?: () => void;
@@ -26,7 +29,9 @@ export function FeedbackForm({
   const [rpe, setRpe] = useState(initial?.rpe ?? session.targetRpe);
   const [pain, setPain] = useState<Pain>(initial?.pain ?? "aucune");
   const [comment, setComment] = useState(initial?.comment ?? "");
-  const [duration, setDuration] = useState(initial?.durationMin ?? session.durationMin);
+  const [duration, setDuration] = useState(
+    initial?.durationMin ?? (activity ? Math.round(activity.movingSec / 60) : session.durationMin),
+  );
   const [rows, setRows] = useState<StrengthSet[]>(
     initial?.strength ?? (session.kind === "renfo" ? [EMPTY_ROW] : []),
   );

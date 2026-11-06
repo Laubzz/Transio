@@ -128,12 +128,13 @@ function runKinds(profile: Profile, week: number, phase: Phase, deload: boolean)
   return kinds;
 }
 
-const DESCRIPTION: Record<SessionKind, string> = {
+/** Résumé d'une séance ; le détail (blocs, allures, exercices) vient de `buildWorkout`. */
+export const SESSION_DESCRIPTION: Record<SessionKind, string> = {
   "course-marche": "Alterner 2 min de course et 1 min de marche, allure très facile",
   endurance: "Footing en endurance fondamentale, zone 2, tu dois pouvoir parler",
   "sortie-longue": "Sortie longue en zone 2, régulière du début à la fin",
-  tempo: "Échauffement puis 2 × 8 min à allure soutenue mais contrôlée",
-  fractionne: "Échauffement puis 6 × 2 min rapide, récupération 1 min 30 trottinée",
+  tempo: "Blocs à allure seuil entre un échauffement et un retour au calme",
+  fractionne: "Répétitions courtes et rapides, récupération en trottinant",
   test: "Test de fin de plan sur la distance objectif",
   "sport-origine": "Séance facile du sport d'origine, compte dans la charge",
   renfo: "Renforcement : mollets, pieds, gainage, chaîne postérieure",
@@ -152,7 +153,7 @@ export function buildWeek(profile: Profile, index: number, volume: WeekVolume): 
     durationMin: durations[i],
     targetRpe: TARGET_RPE[kind],
     impact: true,
-    description: DESCRIPTION[kind],
+    description: SESSION_DESCRIPTION[kind],
   }));
 
   const free = [0, 1, 2, 3, 4, 5, 6].filter((d) => !runDays.includes(d));
@@ -165,7 +166,7 @@ export function buildWeek(profile: Profile, index: number, volume: WeekVolume): 
       durationMin: floor5(base * lighten),
       targetRpe: TARGET_RPE["sport-origine"],
       impact: false,
-      description: `${ORIGIN_LABEL[profile.originSport]} : ${DESCRIPTION["sport-origine"]}`,
+      description: `${ORIGIN_LABEL[profile.originSport]} : ${SESSION_DESCRIPTION["sport-origine"]}`,
     });
   }
   for (let i = 0; i < profile.strengthPerWeek && free.length; i++) {
@@ -175,7 +176,7 @@ export function buildWeek(profile: Profile, index: number, volume: WeekVolume): 
       durationMin: floor5(40 * lighten),
       targetRpe: TARGET_RPE.renfo,
       impact: false,
-      description: DESCRIPTION.renfo,
+      description: SESSION_DESCRIPTION.renfo,
     });
   }
   sessions.sort((a, b) => a.day - b.day);

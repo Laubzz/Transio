@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { GOAL_LABEL, ORIGIN_LABEL } from "@/engine";
 import { useAppState } from "@/lib/store";
+import { useAccount } from "@/lib/sync";
 import { CalendarIcon, ChartIcon, JournalIcon, ProfileIcon, TodayIcon } from "./icons";
 import { ButtonLink } from "./ui";
 
@@ -34,6 +35,7 @@ function Logo({ className = "" }: { className?: string }) {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const state = useAppState();
+  const account = useAccount();
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
@@ -56,8 +58,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
+        {account.auth === "signed-in" && (
+          <p className="mt-auto mb-3 truncate px-3 text-xs text-muted" title={account.email}>
+            <SyncDot status={account.sync} /> {account.email}
+          </p>
+        )}
         {state && (
-          <div className="mt-auto rounded-xl border border-white/10 p-3 text-xs text-muted">
+          <div
+            className={`${account.auth === "signed-in" ? "" : "mt-auto"} rounded-xl border border-white/10 p-3 text-xs text-muted`}
+          >
             <p className="font-semibold text-ink">
               {ORIGIN_LABEL[state.plan.profile.originSport]} → course
             </p>
@@ -75,8 +84,23 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-6 pb-28 md:px-8 md:pt-10 md:pb-12">
-          {state === undefined ? (
+          {state === undefined ||
+          account.auth === "loading" ||
+          (account.auth === "signed-in" && account.sync === "loading") ? (
             <p className="text-muted">Chargement…</p>
+          ) : account.auth === "signed-out" ? (
+            <div className="py-16 text-center">
+              <h1 className="text-2xl font-bold">Connecte-toi pour retrouver ton plan</h1>
+              <p className="mt-2 text-muted">
+                Ton compte garde ton plan et tes séances d&apos;un appareil à l&apos;autre.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
+                <ButtonLink href="/connexion">Se connecter</ButtonLink>
+                <ButtonLink href="/inscription" variant="ghost">
+                  Créer un compte
+                </ButtonLink>
+              </div>
+            </div>
           ) : state === null ? (
             <div className="py-16 text-center">
               <h1 className="text-2xl font-bold">Pas encore de plan</h1>
@@ -113,5 +137,30 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </div>
     </div>
+  );
+}
+
+const SYNC_LABEL = {
+  idle: "Compte",
+  loading: "Chargement du compte",
+  saving: "Enregistrement…",
+  saved: "Enregistré dans ton compte",
+  error: "Erreur de synchronisation",
+} as const;
+
+function SyncDot({ status }: { status: keyof typeof SYNC_LABEL }) {
+  const color =
+    status === "error"
+      ? "bg-warn"
+      : status === "saving" || status === "loading"
+        ? "bg-origin"
+        : "bg-target";
+  return (
+    <span
+      role="img"
+      aria-label={SYNC_LABEL[status]}
+      title={SYNC_LABEL[status]}
+      className={`mr-1 inline-block h-2 w-2 rounded-full align-middle ${color}`}
+    />
   );
 }

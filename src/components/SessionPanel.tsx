@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { Session } from "@/engine";
+import { SESSION_DESCRIPTION, type Session } from "@/engine";
 import { formatLong, type ISODate } from "@/lib/dates";
 import { KIND_LABEL, RPE_LABEL, sessionLabel } from "@/lib/labels";
-import { feedbackKey, isReviewed, recordFeedback, type AppState } from "@/lib/state";
+import { feedbackKey, isReviewed, matchActivity, recordFeedback, type AppState } from "@/lib/state";
 import { saveState } from "@/lib/store";
 import { FeedbackForm } from "./FeedbackForm";
+import { ActivitySummary, WorkoutDetail } from "./WorkoutDetail";
 import { Button } from "./ui";
 
 export type SessionStatus = "a-venir" | "a-noter" | "faite" | "pas-faite";
@@ -61,6 +62,8 @@ export function SessionPanel({
   const status = sessionStatus(state, weekIndex, session, date, today);
   const locked = isReviewed(state, weekIndex);
   const [editing, setEditing] = useState(false);
+  const week = state.plan.weeks[weekIndex - 1];
+  const activity = date <= today ? matchActivity(state, date, session.kind, session.impact) : null;
 
   const save = (next: Parameters<typeof recordFeedback>[3]) => {
     saveState(recordFeedback(state, weekIndex, session.day, next));
@@ -94,20 +97,41 @@ export function SessionPanel({
           {session.durationMin} min · difficulté visée {session.targetRpe}/10
         </p>
         <p className={`mt-2 text-sm ${hero ? "text-night/80" : "text-muted"}`}>
-          {session.description}
+          {SESSION_DESCRIPTION[session.kind]}
         </p>
       </div>
 
-      <div
-        className={
-          hero ? "border border-t-0 border-white/10 bg-card p-5" : "border-t border-white/10 p-4"
-        }
+      <details
+        open={hero}
+        className={`group ${hero ? "border-x border-white/10 bg-card px-5 py-4" : "border-t border-white/10 px-4 py-3"}`}
       >
+        <summary className="cursor-pointer text-sm font-semibold text-muted hover:text-ink">
+          Détail de la séance
+        </summary>
+        <div className="mt-3">
+          <WorkoutDetail profile={state.plan.profile} week={week} session={session} />
+        </div>
+      </details>
+
+      {activity && (
+        <div
+          className={
+            hero
+              ? "border-x border-t border-white/10 bg-card px-5 py-3"
+              : "border-t border-white/10 px-4 py-3"
+          }
+        >
+          <ActivitySummary activity={activity} />
+        </div>
+      )}
+
+      <div className={hero ? "border border-white/10 bg-card p-5" : "border-t border-white/10 p-4"}>
         {status === "a-venir" ? (
           <p className="text-sm text-muted">Tu pourras la noter le jour venu.</p>
         ) : editing || (status === "a-noter" && hero && !locked) ? (
           <FeedbackForm
             session={session}
+            activity={activity}
             initial={fb}
             onSave={save}
             onCancel={editing ? () => setEditing(false) : undefined}

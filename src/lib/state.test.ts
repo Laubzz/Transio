@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { VELO_TO_10K } from "@/engine/fixtures";
 import {
   createState,
+  estimate5k,
+  matchActivity,
+  mergeActivities,
+  setReference5k,
   feedbackKey,
   parseState,
   pendingReview,
@@ -74,9 +78,70 @@ describe("état de l'app", () => {
     expect(() => recordFeedback(s, 1, s.plan.weeks[0].sessions[0].day, { done: true })).toThrow();
   });
 
+  it("fusionne les activités importées sans doublon et les rapproche des séances", () => {
+    const run = {
+      id: 1,
+      date: "2026-11-10",
+      sport: "course" as const,
+      name: "Footing",
+      distanceM: 4000,
+      movingSec: 1500,
+    };
+    let s = mergeActivities(fresh(), [run]);
+    s = mergeActivities(s, [
+      { ...run, name: "Footing modifié" },
+      { ...run, id: 2, date: "2026-11-12" },
+    ]);
+    expect(s.activities?.map((a) => a.id)).toEqual([2, 1]);
+    expect(s.activities?.[1].name).toBe("Footing modifié");
+    expect(matchActivity(s, "2026-11-10", "course-marche", true)?.id).toBe(1);
+    expect(matchActivity(s, "2026-11-10", "renfo", false)).toBeNull();
+  });
+
+  it("estime prudemment le temps sur 5 km à partir des sorties récentes", () => {
+    const acts = [
+      {
+        id: 1,
+        date: "2026-11-01",
+        sport: "course" as const,
+        name: "a",
+        distanceM: 5000,
+        movingSec: 1800,
+      },
+      {
+        id: 2,
+        date: "2026-11-03",
+        sport: "course" as const,
+        name: "b",
+        distanceM: 5000,
+        movingSec: 1650,
+      },
+      {
+        id: 3,
+        date: "2026-08-01",
+        sport: "course" as const,
+        name: "vieille",
+        distanceM: 5000,
+        movingSec: 1200,
+      },
+      {
+        id: 4,
+        date: "2026-11-02",
+        sport: "velo" as const,
+        name: "vélo",
+        distanceM: 5000,
+        movingSec: 600,
+      },
+    ];
+    expect(estimate5k(acts, "2026-11-06")).toBe(1650);
+    expect(estimate5k([], "2026-11-06")).toBeNull();
+    const s = setReference5k(fresh(), 1650);
+    expect(s.plan.profile.reference5kSec).toBe(1650);
+  });
+
   it("relit un état sauvegardé et ignore un état illisible", () => {
     const s = fresh();
-    expect(parseState(JSON.stringify(s))).toEqual(s);
+    expect(parseState(JSON.stringify(s))).toEqual({ ...s, activities: [] });
     expect(parseState(null)).toBeNull();
     expect(parseState("pas du json")).toBeNull();
     expect(parseState(JSON.stringify({ version: 2 }))).toBeNull();
