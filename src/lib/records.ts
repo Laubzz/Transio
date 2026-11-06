@@ -2,7 +2,7 @@ import { equivalent5k, formatDuration, formatPace } from "@/engine";
 import { journal, strengthRecords } from "./analytics";
 import type { ISODate } from "./dates";
 import { cycles, type Activity, type AppState } from "./state";
-import { activityPace } from "./strava";
+import { EFFORT_LABEL, activityPace } from "./strava";
 
 export interface RecordEntry {
   /** Valeur mise en avant (« 12,4 km », « 5:12 /km »…). */
@@ -77,18 +77,21 @@ export function records(state: AppState): RecordCategory[] {
     })),
   });
 
-  out.push({
-    id: "5k",
-    title: "Meilleur équivalent 5 km",
-    top: top3(
-      mid,
-      (a, b) => equivalent5k(a.distanceM, a.movingSec) - equivalent5k(b.distanceM, b.movingSec),
-    ).map((a) => ({
-      value: formatDuration(equivalent5k(a.distanceM, a.movingSec)),
-      detail: `d'après ${a.name} · ${km(a.distanceM)} en ${formatDuration(a.movingSec)}`,
-      date: a.date,
-    })),
-  });
+  // Estimation utile seulement sans vrai record sur 5 km (meilleurs efforts Strava).
+  const has5kEffort = runs.some((r) => r.bestEfforts?.some((e) => e.name === "5k"));
+  if (!has5kEffort)
+    out.push({
+      id: "5k",
+      title: "Meilleur équivalent 5 km",
+      top: top3(
+        mid,
+        (a, b) => equivalent5k(a.distanceM, a.movingSec) - equivalent5k(b.distanceM, b.movingSec),
+      ).map((a) => ({
+        value: formatDuration(equivalent5k(a.distanceM, a.movingSec)),
+        detail: `d'après ${a.name} · ${km(a.distanceM)} en ${formatDuration(a.movingSec)}`,
+        date: a.date,
+      })),
+    });
 
   out.push({
     id: "denivele",
@@ -153,4 +156,42 @@ export function records(state: AppState): RecordCategory[] {
   });
 
   return out.filter((c) => c.top.length > 0);
+}
+
+export interface PersonalBest {
+  /** Nom Strava de la distance (« 5k »…). */
+  name: string;
+  label: string;
+  distanceM: number;
+  /** Les 3 meilleurs temps, une seule fois par sortie. */
+  top: { timeSec: number; pace: string; date: ISODate; activity: string }[];
+}
+
+/** Records personnels de course par distance (meilleurs efforts Strava), du plus court au plus long. */
+export function personalBests(state: AppState): PersonalBest[] {
+  const byName = new Map<string, PersonalBest>();
+  for (const a of state.activities ?? []) {
+    if (a.sport !== "course") continue;
+    for (const e of a.bestEfforts ?? []) {
+      const pb =
+        byName.get(e.name) ??
+        byName
+          .set(e.name, {
+            name: e.name,
+            label: EFFORT_LABEL[e.name] ?? e.name,
+            distanceM: e.distanceM,
+            top: [],
+          })
+          .get(e.name)!;
+      pb.top.push({
+        timeSec: e.elapsedSec,
+        pace: `${formatPace(e.elapsedSec / (e.distanceM / 1000))} /km`,
+        date: a.date,
+        activity: a.name,
+      });
+    }
+  }
+  return [...byName.values()]
+    .map((pb) => ({ ...pb, top: pb.top.sort((x, y) => x.timeSec - y.timeSec).slice(0, 3) }))
+    .sort((x, y) => x.distanceM - y.distanceM);
 }

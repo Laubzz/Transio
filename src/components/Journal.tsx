@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ORIGIN_LABEL } from "@/engine";
+import { ORIGIN_LABEL, formatDuration } from "@/engine";
 import { journal } from "@/lib/analytics";
 import { formatLong } from "@/lib/dates";
 import { RPE_LABEL, sessionLabel } from "@/lib/labels";
-import { longestStreak, records } from "@/lib/records";
+import { longestStreak, personalBests, records } from "@/lib/records";
 import { cycles, type AppState } from "@/lib/state";
 import { useAppState } from "@/lib/store";
 import { ButtonLink, Card, Kicker, Segmented } from "./ui";
@@ -44,9 +44,47 @@ function Records({ state }: { state: AppState }) {
   const cats = records(state);
   const streak = longestStreak(state);
   const hasStrava = (state.activities?.length ?? 0) > 0;
+  const pbs = personalBests(state);
 
   return (
     <div className="space-y-4">
+      {pbs.length > 0 && (
+        <Card className="p-4">
+          <h2 className="text-sm font-semibold">Records personnels en course à pied</h2>
+          <p className="mt-0.5 text-xs text-muted">
+            Tes meilleurs temps sur chaque distance, d&apos;après tes sorties Strava.
+          </p>
+          <ul className="mt-3 divide-y divide-white/5">
+            {pbs.map((pb) => (
+              <li key={pb.name} className="py-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="w-24 shrink-0 font-semibold whitespace-nowrap">{pb.label}</span>
+                  <span className="text-xl font-extrabold tabular-nums">
+                    {formatDuration(pb.top[0].timeSec)}
+                  </span>
+                  <span className="ml-auto text-right text-xs text-muted tabular-nums">
+                    {pb.top[0].pace}
+                    <br />
+                    {formatLong(pb.top[0].date)}
+                  </span>
+                </div>
+                {pb.top.length > 1 && (
+                  <p className="mt-1 text-xs text-muted tabular-nums">
+                    {pb.top
+                      .slice(1)
+                      .map(
+                        (t, i) =>
+                          `${RANK[i + 1]} ${formatDuration(t.timeSec)} (${formatLong(t.date)})`,
+                      )
+                      .join(" · ")}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {streak.count > 0 && (
         <Card className="flex flex-wrap items-baseline justify-between gap-2">
           <div>

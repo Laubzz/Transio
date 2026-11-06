@@ -1,7 +1,14 @@
 "use client";
 
 import { addDays, toISO } from "./dates";
-import { mergeActivities, type Activity, type AppState } from "./state";
+import {
+  activitiesNeedingDetails,
+  mergeActivities,
+  setBestEfforts,
+  type Activity,
+  type AppState,
+  type BestEffort,
+} from "./state";
 import { STRAVA_SCOPE } from "./strava";
 import { readState, saveState } from "./store";
 import { accessToken } from "./supabase";
@@ -77,23 +84,72 @@ export async function finishStravaConnect(query: URLSearchParams) {
   });
 }
 
+export interface ImportProgress {
+  phase: "activites" | "records";
+  /** Activités reçues, ou sorties analysées pour les records. */
+  done: number;
+  /** Total de sorties à analyser (phase records). */
+  total?: number;
+}
+
+export interface ImportResult {
+  added: number;
+  analysed: number;
+  /** Il reste des sorties à analyser : la limite Strava est atteinte, reprendre plus tard. */
+  remaining: number;
+}
+
 /**
- * Importe les activités depuis 6 semaines avant le début du plan (pour estimer l'allure),
- * ou depuis la dernière activité importée. Renvoie le nombre de nouvelles activités.
+ * Importe les activités Strava : tout l'historique la première fois (ou si `full`),
+ * puis seulement les nouvelles. Lit ensuite les records des sorties concernées.
  */
-export async function importFromStrava(): Promise<number> {
-  const state = readState();
-  if (!state) return 0;
-  const last = state.activities?.[0]?.date;
-  const since = last ? addDays(last, -2) : addDays(state.startDate, -42);
-  const { activities } = await call<{ activities: Activity[] }>("/api/strava/import", {
-    method: "POST",
-    body: JSON.stringify({ since: since > toISO(new Date()) ? toISO(new Date()) : since }),
-  });
-  const known = new Set((state.activities ?? []).map((a) => a.id));
-  const fresh = readState() as AppState;
-  saveState(mergeActivities(fresh, activities));
-  return activities.filter((a) => !known.has(a.id)).length;
+export async function importFromStrava(
+  opts: { full?: boolean; onProgress?: (p: ImportProgress) => void } = {},
+): Promise<ImportResult> {
+  const start = readState();
+  if (!start) return { added: 0, analysed: 0, remaining: 0 };
+  const known = new Set((start.activities ?? []).map((a) => a.id));
+  const full = opts.full || !start.stravaFullImport;
+  const last = start.activities?.[0]?.date;
+  const today = toISO(new Date());
+  const since = full || !last ? undefined : addDays(last, -2) > today ? today : addDays(last, -2);
+
+  let received = 0;
+  for (let page = 1; page <= 100; page++) {
+    const { activities, more } = await call<{ activities: Activity[]; more: boolean }>(
+      "/api/strava/import",
+      { method: "POST", body: JSON.stringify({ since, page }) },
+    );
+    received += activities.length;
+    saveState(mergeActivities(readState() as AppState, activities));
+    opts.onProgress?.({ phase: "activites", done: received });
+    if (!more) break;
+  }
+  if (full) saveState({ ...(readState() as AppState), stravaFullImport: true });
+  const added = (readState()?.activities ?? []).filter((a) => !known.has(a.id)).length;
+
+  const { analysed, remaining } = await importBestEfforts(opts.onProgress);
+  return { added, analysed, remaining };
+}
+
+/** Lit les meilleurs efforts des sorties avec record, par lots de 10, jusqu'à la limite Strava. */
+export async function importBestEfforts(onProgress?: (p: ImportProgress) => void) {
+  const todo = activitiesNeedingDetails(readState() as AppState);
+  let analysed = 0;
+  for (let i = 0; i < todo.length; i += 10) {
+    const { details, rateLimited } = await call<{
+      details: { id: number; bestEfforts: BestEffort[] }[];
+      rateLimited: boolean;
+    }>("/api/strava/details", {
+      method: "POST",
+      body: JSON.stringify({ ids: todo.slice(i, i + 10) }),
+    });
+    saveState(setBestEfforts(readState() as AppState, details));
+    analysed += details.length;
+    onProgress?.({ phase: "records", done: analysed, total: todo.length });
+    if (rateLimited) break;
+  }
+  return { analysed, remaining: todo.length - analysed };
 }
 
 export const disconnectStrava = () => call("/api/strava", { method: "DELETE" });

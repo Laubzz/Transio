@@ -12,6 +12,7 @@ export function StravaCallback() {
   const router = useRouter();
   const account = useAccount();
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
   const started = useRef(false);
 
   useEffect(() => {
@@ -19,7 +20,16 @@ export function StravaCallback() {
     started.current = true;
     const query = new URLSearchParams(window.location.search);
     finishStravaConnect(query)
-      .then(() => importFromStrava())
+      .then(() =>
+        importFromStrava({
+          onProgress: (p) =>
+            setProgress(
+              p.phase === "activites"
+                ? `${p.done} activités reçues…`
+                : `Lecture de tes records : ${p.done}/${p.total} sorties…`,
+            ),
+        }),
+      )
       .then(() => router.replace("/profil#strava"))
       .catch((e: Error) => setError(e.message));
   }, [account.auth, account.sync, router]);
@@ -43,7 +53,13 @@ export function StravaCallback() {
           </Link>
         </>
       ) : (
-        <h1 className="mt-2 text-2xl font-bold">Connexion à Strava et import de tes activités…</h1>
+        <>
+          <h1 className="mt-2 text-2xl font-bold">Import de tout ton historique Strava…</h1>
+          <p className="mt-2 text-muted">
+            {progress ?? "Connexion à Strava…"} Garde cette page ouverte, ça peut prendre une
+            minute.
+          </p>
+        </>
       )}
     </main>
   );
