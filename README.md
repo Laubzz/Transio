@@ -30,11 +30,30 @@ npm run dev        # http://localhost:3000
 ```
 src/
   app/          pages Next.js (App Router), manifest et icônes de la web app
-  components/   composants d'interface
+  components/   composants d'interface et écrans
+  lib/          dates, état de l'app (plan, retours, bilans) et sauvegarde locale
   engine/       moteur de plan, en TypeScript pur, sans dépendance à l'interface
 public/         icônes et service worker (sw.js)
 video/          vidéo de présentation et ses sources
 ```
+
+## Les écrans de la V1
+
+L'app a une navigation permanente : barre latérale sur ordinateur, onglets en bas sur mobile.
+
+| Écran         | Route            | Rôle                                                                                       |
+| ------------- | ---------------- | ------------------------------------------------------------------------------------------ |
+| Accueil       | `/`              | Présentation ; renvoie vers l'app si un plan existe                                        |
+| Questionnaire | `/questionnaire` | 4 étapes : sport d'origine, blessures, objectif et date de début, semaine type             |
+| Aujourd'hui   | `/aujourdhui`    | Séance du jour et son retour (faite, durée, difficulté 1–10, gêne ou douleur, commentaire) |
+| Calendrier    | `/calendrier`    | Frise des semaines, semaine jour par jour, retours, bilan de semaine                       |
+| Analyses      | `/analyses`      | Séances faites, minutes de course faites et prévues, charge sRPE, ratio aigu / chronique   |
+| Journal       | `/journal`       | Historique des séances notées, journal muscu et records                                    |
+| Profil        | `/profil`        | Réponses au questionnaire, refaire le plan, effacer les données                            |
+
+Le bilan d'une semaine terminée applique `adjustPlan` au reste du plan. Pour l'instant, le plan
+et les retours sont enregistrés dans le navigateur (`src/lib/store.ts`), en attendant la base
+de données.
 
 ## Le moteur de plan (`src/engine`)
 
