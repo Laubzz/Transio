@@ -60,6 +60,8 @@ export interface AppState {
   reviews: WeekReview[];
   /** Activités importées de Strava. */
   activities?: Activity[];
+  /** Tout l'historique Strava a été importé au moins une fois. */
+  stravaFullImport?: boolean;
   /** Cycles terminés (plan de transition, puis suites), du plus ancien au plus récent. */
   history?: ArchivedCycle[];
   /** Export agenda : heure des séances (« 18:30 »), ou `null` pour la journée entière. */
@@ -85,6 +87,24 @@ export interface Activity {
   movingSec: number;
   avgHr?: number;
   elevationM?: number;
+  /** Temps écoulé, pauses comprises. */
+  elapsedSec?: number;
+  maxHr?: number;
+  /** Nombre de records personnels battus pendant l'activité (selon Strava). */
+  prCount?: number;
+  /**
+   * Meilleurs efforts de la sortie (400 m, 1 km, 5 km…), lus dans le détail de l'activité.
+   * Absent tant que le détail n'a pas été importé.
+   */
+  bestEfforts?: BestEffort[];
+}
+
+/** Meilleur temps sur une distance standard pendant une sortie (« best effort » Strava). */
+export interface BestEffort {
+  /** Nom Strava de la distance : « 1k », « 5k », « Half-Marathon »… */
+  name: string;
+  distanceM: number;
+  elapsedSec: number;
 }
 
 export const feedbackKey = (weekIndex: number, day: number) => `${weekIndex}-${day}`;
@@ -178,11 +198,33 @@ export function parseState(raw: string | null): AppState | null {
 /** Ajoute des activités importées (sans doublon), de la plus récente à la plus ancienne. */
 export function mergeActivities(state: AppState, incoming: Activity[]): AppState {
   const byId = new Map((state.activities ?? []).map((a) => [a.id, a]));
-  for (const a of incoming) byId.set(a.id, a);
+  // Un nouvel import du résumé garde les meilleurs efforts déjà lus.
+  for (const a of incoming) byId.set(a.id, { ...byId.get(a.id), ...a });
   const activities = [...byId.values()].sort((a, b) =>
     a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id,
   );
   return { ...state, activities };
+}
+
+/** Enregistre les meilleurs efforts lus dans le détail des activités. */
+export function setBestEfforts(
+  state: AppState,
+  details: { id: number; bestEfforts: BestEffort[] }[],
+): AppState {
+  const byId = new Map(details.map((d) => [d.id, d.bestEfforts]));
+  return {
+    ...state,
+    activities: (state.activities ?? []).map((a) =>
+      byId.has(a.id) ? { ...a, bestEfforts: byId.get(a.id) } : a,
+    ),
+  };
+}
+
+/** Sorties dont le détail reste à lire : celles où Strava signale un record personnel. */
+export function activitiesNeedingDetails(state: AppState): number[] {
+  return (state.activities ?? [])
+    .filter((a) => a.sport === "course" && (a.prCount ?? 0) > 0 && a.bestEfforts === undefined)
+    .map((a) => a.id);
 }
 
 const SPORT_FOR_KIND = (kind: string, impact: boolean): Activity["sport"] =>
@@ -217,9 +259,16 @@ export function estimate5k(activities: Activity[], today: ISODate): number | nul
       a.distanceM <= 15000 &&
       a.movingSec > 0,
   );
-  if (!runs.length) return null;
-  const best = Math.min(...runs.map((a) => a.movingSec * (5000 / a.distanceM) ** 1.06));
-  return Math.round(best);
+  // Meilleurs efforts Strava entre 3 et 15 km, plus fiables qu'une moyenne de sortie.
+  const efforts = runs.flatMap((a) =>
+    (a.bestEfforts ?? []).filter((e) => e.distanceM >= 3000 && e.distanceM <= 15000),
+  );
+  const candidates = [
+    ...runs.map((a) => a.movingSec * (5000 / a.distanceM) ** 1.06),
+    ...efforts.map((e) => e.elapsedSec * (5000 / e.distanceM) ** 1.06),
+  ];
+  if (!candidates.length) return null;
+  return Math.round(Math.min(...candidates));
 }
 
 /** Change le temps de référence 5 km sans régénérer le plan. */

@@ -224,6 +224,7 @@ function StravaCard({ state }: { state: AppState }) {
   const [status, setStatus] = useState<StravaStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
   const signedIn = account.auth === "signed-in";
 
   useEffect(() => {
@@ -249,6 +250,33 @@ function StravaCard({ state }: { state: AppState }) {
   };
 
   const count = state.activities?.length ?? 0;
+
+  const doImport = async (full: boolean) => {
+    const r = await importFromStrava({
+      full,
+      onProgress: (p) =>
+        setProgress(
+          p.phase === "activites"
+            ? `${p.done} activité${p.done > 1 ? "s" : ""} reçue${p.done > 1 ? "s" : ""}…`
+            : `Lecture des records : ${p.done}/${p.total} sorties…`,
+        ),
+    });
+    setProgress(null);
+    const parts = [
+      r.added
+        ? `${r.added} nouvelle${r.added > 1 ? "s" : ""} activité${r.added > 1 ? "s" : ""}`
+        : "Aucune nouvelle activité",
+    ];
+    if (r.analysed)
+      parts.push(
+        `${r.analysed} sortie${r.analysed > 1 ? "s" : ""} analysée${r.analysed > 1 ? "s" : ""} pour les records`,
+      );
+    if (r.remaining)
+      parts.push(
+        `${r.remaining} restent à analyser : Strava limite le nombre de requêtes, relance l'import dans 15 minutes`,
+      );
+    return parts.join(" · ") + ".";
+  };
 
   return (
     <Card>
@@ -278,23 +306,24 @@ function StravaCard({ state }: { state: AppState }) {
       ) : status.connected ? (
         <>
           <p className="mt-1 text-sm text-muted">
-            Connecté. {count} activité{count > 1 ? "s" : ""} importée{count > 1 ? "s" : ""} : elles
-            remplissent tes retours de séance et estiment ton allure.
+            Connecté. {count} activité{count > 1 ? "s" : ""} importée{count > 1 ? "s" : ""}
+            {state.stravaFullImport ? " (tout ton historique)" : ""} : elles remplissent tes retours
+            de séance, tes records et l&apos;estimation de ton allure.
           </p>
+          {progress && <p className="mt-2 text-sm text-target">{progress}</p>}
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  const n = await importFromStrava();
-                  return n
-                    ? `${n} nouvelle${n > 1 ? "s" : ""} activité${n > 1 ? "s" : ""} importée${n > 1 ? "s" : ""}.`
-                    : "Rien de nouveau.";
-                })
-              }
-            >
-              {busy ? "Import…" : "Importer mes activités"}
+            <Button disabled={busy} onClick={() => run(() => doImport(false))}>
+              {busy
+                ? "Import…"
+                : state.stravaFullImport
+                  ? "Importer les nouvelles activités"
+                  : "Importer tout mon historique"}
             </Button>
+            {state.stravaFullImport && (
+              <Button variant="ghost" disabled={busy} onClick={() => run(() => doImport(true))}>
+                Tout réimporter
+              </Button>
+            )}
             <Button
               variant="ghost"
               disabled={busy}

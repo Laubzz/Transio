@@ -1,7 +1,12 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { toActivity, type StravaSummaryActivity } from "../strava";
-import type { Activity } from "../state";
+import {
+  toActivity,
+  toBestEfforts,
+  type StravaBestEffort,
+  type StravaSummaryActivity,
+} from "../strava";
+import type { Activity, BestEffort } from "../state";
 
 const API = "https://www.strava.com/api/v3";
 const OAUTH = "https://www.strava.com/oauth";
@@ -97,27 +102,62 @@ async function validAccessToken(sb: SupabaseClient, userId: string): Promise<str
   return t.access_token;
 }
 
-/** Activités depuis une date (epoch en secondes), 3 pages de 100 au plus. */
-export async function importActivities(
+const PER_PAGE = 200;
+
+async function get<T>(path: string, access: string): Promise<T> {
+  const res = await fetch(`${API}${path}`, {
+    headers: { Authorization: `Bearer ${access}` },
+    cache: "no-store",
+  });
+  if (res.status === 429) {
+    throw new StravaError(
+      "Limite de requêtes Strava atteinte. L'import reprendra dans 15 minutes.",
+      429,
+    );
+  }
+  if (!res.ok) throw new StravaError("Strava n'a pas pu fournir tes activités.");
+  return res.json() as Promise<T>;
+}
+
+/** Une page d'activités (200 au plus) depuis une date (epoch en secondes, 0 pour tout). */
+export async function importPage(
   sb: SupabaseClient,
   userId: string,
   afterEpoch: number,
-): Promise<Activity[]> {
+  page: number,
+): Promise<{ activities: Activity[]; more: boolean }> {
   const access = await validAccessToken(sb, userId);
-  const out: Activity[] = [];
-  for (let page = 1; page <= 3; page++) {
-    const res = await fetch(
-      `${API}/athlete/activities?after=${afterEpoch}&per_page=100&page=${page}`,
-      { headers: { Authorization: `Bearer ${access}` }, cache: "no-store" },
-    );
-    if (res.status === 429)
-      throw new StravaError("Trop de requêtes vers Strava. Réessaie dans 15 minutes.", 429);
-    if (!res.ok) throw new StravaError("Strava n'a pas pu fournir tes activités.");
-    const batch = (await res.json()) as StravaSummaryActivity[];
-    out.push(...batch.map(toActivity));
-    if (batch.length < 100) break;
+  const batch = await get<StravaSummaryActivity[]>(
+    `/athlete/activities?after=${afterEpoch}&per_page=${PER_PAGE}&page=${page}`,
+    access,
+  );
+  return { activities: batch.map(toActivity), more: batch.length === PER_PAGE };
+}
+
+/**
+ * Meilleurs efforts de quelques activités (une requête Strava par activité).
+ * S'arrête proprement à la limite de requêtes : `rateLimited` indique de reprendre plus tard.
+ */
+export async function activityDetails(
+  sb: SupabaseClient,
+  userId: string,
+  ids: number[],
+): Promise<{ details: { id: number; bestEfforts: BestEffort[] }[]; rateLimited: boolean }> {
+  const access = await validAccessToken(sb, userId);
+  const details: { id: number; bestEfforts: BestEffort[] }[] = [];
+  for (const id of ids) {
+    try {
+      const a = await get<{ best_efforts?: StravaBestEffort[] }>(
+        `/activities/${id}?include_all_efforts=false`,
+        access,
+      );
+      details.push({ id, bestEfforts: toBestEfforts(a.best_efforts) });
+    } catch (e) {
+      if (e instanceof StravaError && e.status === 429) return { details, rateLimited: true };
+      details.push({ id, bestEfforts: [] }); // activité supprimée ou privée : on ne réessaie pas
+    }
   }
-  return out;
+  return { details, rateLimited: false };
 }
 
 /** Retire l'accès côté Strava et supprime les jetons enregistrés. */

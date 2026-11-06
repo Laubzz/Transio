@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { VELO_TO_10K } from "@/engine/fixtures";
-import { longestStreak, records } from "./records";
+import { longestStreak, personalBests, records } from "./records";
 import {
+  activitiesNeedingDetails,
   createState,
+  setBestEfforts,
   mergeActivities,
   planEnd,
   recordFeedback,
@@ -91,5 +93,60 @@ describe("suite du plan", () => {
     expect(next.feedback).toEqual({});
     expect(next.plan.profile.reference5kSec).toBe(1500);
     expect(planEnd(base)).toBe("2027-01-31");
+  });
+});
+
+describe("records personnels (meilleurs efforts Strava)", () => {
+  it("garde les 3 meilleurs temps par distance, triés par distance", () => {
+    const withEfforts = (
+      id: number,
+      date: string,
+      efforts: [string, number, number][],
+    ): Activity => ({
+      ...run(id, date, 12000, 3600),
+      prCount: 1,
+      bestEfforts: efforts.map(([name, distanceM, elapsedSec]) => ({
+        name,
+        distanceM,
+        elapsedSec,
+      })),
+    });
+    const s = mergeActivities(base, [
+      withEfforts(1, "2026-05-01", [
+        ["5k", 5000, 1500],
+        ["1k", 1000, 270],
+      ]),
+      withEfforts(2, "2026-06-01", [
+        ["5k", 5000, 1440],
+        ["10k", 10000, 3000],
+      ]),
+      withEfforts(3, "2026-07-01", [["5k", 5000, 1470]]),
+      withEfforts(4, "2026-08-01", [["5k", 5000, 1600]]),
+    ]);
+    const pbs = personalBests(s);
+    expect(pbs.map((p) => p.label)).toEqual(["1 km", "5 km", "10 km"]);
+    const five = pbs[1];
+    expect(five.top.map((t) => t.timeSec)).toEqual([1440, 1470, 1500]);
+    expect(five.top[0]).toMatchObject({
+      pace: "4:48 /km",
+      date: "2026-06-01",
+      activity: "Sortie 2",
+    });
+  });
+
+  it("ne relit que les sorties avec record dont le détail manque", () => {
+    const s = mergeActivities(base, [
+      { ...run(1, "2026-05-01", 5000, 1500), prCount: 2 },
+      { ...run(2, "2026-05-02", 5000, 1500), prCount: 0 },
+      { ...run(3, "2026-05-03", 5000, 1500), prCount: 1, bestEfforts: [] },
+    ]);
+    expect(activitiesNeedingDetails(s)).toEqual([1]);
+    const after = setBestEfforts(s, [
+      { id: 1, bestEfforts: [{ name: "5k", distanceM: 5000, elapsedSec: 1490 }] },
+    ]);
+    expect(activitiesNeedingDetails(after)).toEqual([]);
+    // un nouvel import du résumé garde les meilleurs efforts déjà lus
+    const again = mergeActivities(after, [{ ...run(1, "2026-05-01", 5000, 1500), prCount: 2 }]);
+    expect(again.activities?.find((a) => a.id === 1)?.bestEfforts).toHaveLength(1);
   });
 });
