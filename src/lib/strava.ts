@@ -12,6 +12,8 @@ export interface StravaSummaryActivity {
   elapsed_time?: number;
   average_heartrate?: number;
   max_heartrate?: number;
+  /** Cadence moyenne (course : pas d'une jambe par minute). */
+  average_cadence?: number;
   total_elevation_gain?: number;
   pr_count?: number;
 }
@@ -83,6 +85,7 @@ export function toActivity(a: StravaSummaryActivity): Activity {
   if (a.elapsed_time) out.elapsedSec = a.elapsed_time;
   if (a.average_heartrate) out.avgHr = Math.round(a.average_heartrate);
   if (a.max_heartrate) out.maxHr = Math.round(a.max_heartrate);
+  if (a.average_cadence && out.sport === "course") out.cadence = Math.round(a.average_cadence * 2);
   if (a.total_elevation_gain) out.elevationM = Math.round(a.total_elevation_gain);
   if (a.pr_count) out.prCount = a.pr_count;
   return out;

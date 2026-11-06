@@ -3,11 +3,14 @@
 import { useState } from "react";
 import { ORIGIN_LABEL, formatDuration } from "@/engine";
 import { journal } from "@/lib/analytics";
+import { MISS_ACTION_LABEL, MISS_CAUSE_LABEL } from "@/lib/coaching";
 import { formatLong } from "@/lib/dates";
 import { RPE_LABEL, sessionLabel } from "@/lib/labels";
 import { longestStreak, personalBests, records } from "@/lib/records";
 import { cycles, type AppState } from "@/lib/state";
 import { useAppState } from "@/lib/store";
+import { FreeSessionCard } from "./FreeSession";
+import { StravaLink } from "./WorkoutDetail";
 import { ButtonLink, Card, Kicker, Segmented } from "./ui";
 
 /** Écran « Journal » : les séances notées, et les records. */
@@ -48,43 +51,7 @@ function Records({ state }: { state: AppState }) {
 
   return (
     <div className="space-y-4">
-      {pbs.length > 0 && (
-        <Card className="p-4">
-          <h2 className="text-sm font-semibold">Records personnels en course à pied</h2>
-          <p className="mt-0.5 text-xs text-muted">
-            Tes meilleurs temps sur chaque distance, d&apos;après tes sorties Strava.
-          </p>
-          <ul className="mt-3 divide-y divide-white/5">
-            {pbs.map((pb) => (
-              <li key={pb.name} className="py-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="w-24 shrink-0 font-semibold whitespace-nowrap">{pb.label}</span>
-                  <span className="text-xl font-extrabold tabular-nums">
-                    {formatDuration(pb.top[0].timeSec)}
-                  </span>
-                  <span className="ml-auto text-right text-xs text-muted tabular-nums">
-                    {pb.top[0].pace}
-                    <br />
-                    {formatLong(pb.top[0].date)}
-                  </span>
-                </div>
-                {pb.top.length > 1 && (
-                  <p className="mt-1 text-xs text-muted tabular-nums">
-                    {pb.top
-                      .slice(1)
-                      .map(
-                        (t, i) =>
-                          `${RANK[i + 1]} ${formatDuration(t.timeSec)} (${formatLong(t.date)})`,
-                      )
-                      .join(" · ")}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
+      {pbs.length > 0 && <PersonalBests pbs={pbs} />}
       {streak.count > 0 && (
         <Card className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
@@ -152,8 +119,9 @@ function Sessions({ state }: { state: AppState }) {
     journal({ ...state, ...c }).map((e) => ({ ...e, cycle: list.length - i })),
   );
   const several = (state.history?.length ?? 0) > 0;
+  const frees = [...(state.freeSessions ?? [])].sort((a, b) => (a.date < b.date ? 1 : -1));
 
-  if (all.length === 0) {
+  if (all.length === 0 && frees.length === 0) {
     return (
       <Card>
         <p className="font-semibold">Aucune séance notée pour l&apos;instant</p>
@@ -169,6 +137,11 @@ function Sessions({ state }: { state: AppState }) {
 
   return (
     <ol className="space-y-3">
+      {frees.map((f) => (
+        <li key={f.id}>
+          <FreeSessionCard state={state} fs={f} />
+        </li>
+      ))}
       {all.map((e) => {
         const fb = e.feedback;
         return (
@@ -188,7 +161,11 @@ function Sessions({ state }: { state: AppState }) {
                   {fb.pain === "douleur" && <span className="text-warn"> · douleur</span>}
                 </p>
               ) : (
-                <p className="mt-1 text-sm text-muted">Pas faite</p>
+                <p className="mt-1 text-sm text-muted">
+                  Pas faite
+                  {fb.missed &&
+                    ` · ${MISS_CAUSE_LABEL[fb.missed.cause]} · ${MISS_ACTION_LABEL[fb.missed.action].toLowerCase()}`}
+                </p>
               )}
               {fb.strength && (
                 <ul className="mt-2 space-y-0.5 text-sm text-muted">
@@ -206,5 +183,73 @@ function Sessions({ state }: { state: AppState }) {
         );
       })}
     </ol>
+  );
+}
+
+function PersonalBests({ pbs }: { pbs: ReturnType<typeof personalBests> }) {
+  const [mode, setMode] = useState<"temps" | "allure">("temps");
+  const [sel, setSel] = useState(pbs.find((p) => p.name === "5k")?.name ?? pbs[0].name);
+  const cur = pbs.find((p) => p.name === sel) ?? pbs[0];
+  const show = (t: { timeSec: number; pace: string }) =>
+    mode === "temps" ? formatDuration(t.timeSec) : t.pace;
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold">Records personnels en course à pied</h2>
+        <Segmented
+          label="Afficher en"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: "temps", label: "Temps" },
+            { value: "allure", label: "Allure (/km)" },
+          ]}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {pbs.map((pb) => (
+          <button
+            key={pb.name}
+            type="button"
+            aria-pressed={pb.name === cur.name}
+            onClick={() => setSel(pb.name)}
+            className={`rounded-2xl border p-3 text-left transition ${
+              pb.name === cur.name
+                ? "border-target bg-target/10"
+                : "border-white/10 bg-card hover:border-white/25"
+            }`}
+          >
+            <span className="block text-xs text-muted">{pb.label}</span>
+            <span className="block text-xl font-extrabold tabular-nums">{show(pb.top[0])}</span>
+            <span className="block text-xs text-muted">{formatLong(pb.top[0].date)}</span>
+          </button>
+        ))}
+      </div>
+      <Card className="p-4">
+        <h3 className="font-semibold">Top 3 · {cur.label}</h3>
+        <ol className="mt-3 space-y-2">
+          {cur.top.map((t, i) => (
+            <li
+              key={t.activityId}
+              className="flex items-center gap-3 rounded-xl border border-white/10 p-3"
+            >
+              <span
+                className={`w-8 shrink-0 rounded-full py-0.5 text-center text-xs font-bold ${i === 0 ? "bg-target text-night" : "bg-white/10 text-muted"}`}
+              >
+                {RANK[i]}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-lg font-extrabold tabular-nums">{show(t)}</p>
+                <p className="truncate text-xs text-muted">
+                  {t.activity} · {formatLong(t.date)} ·{" "}
+                  {mode === "temps" ? t.pace : formatDuration(t.timeSec)}
+                </p>
+              </div>
+              <StravaLink id={t.activityId} label="Strava" />
+            </li>
+          ))}
+        </ol>
+      </Card>
+    </section>
   );
 }

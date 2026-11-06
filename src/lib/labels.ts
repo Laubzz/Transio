@@ -63,3 +63,15 @@ export const RPE_LABEL = [
 export function sessionLabel(kind: SessionKind, originLabel: string): string {
   return kind === "sport-origine" ? originLabel : KIND_LABEL[kind];
 }
+
+/** Couleur de chaque type de séance (calendrier, légende). */
+export const KIND_COLOR: Record<SessionKind, string> = {
+  "course-marche": "#7fd3b5",
+  endurance: "#2ee6c5",
+  "sortie-longue": "#4fb6f0",
+  tempo: "#ff7a45",
+  fractionne: "#ff8fae",
+  test: "#ff4d6d",
+  "sport-origine": "#f2c744",
+  renfo: "#a493ff",
+};

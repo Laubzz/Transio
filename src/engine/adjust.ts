@@ -59,11 +59,25 @@ function lastBuildUpTo(plan: Plan, upTo: number): number {
   return builds.length ? builds[builds.length - 1].runMinutes : plan.weeks[0].runMinutes;
 }
 
-/** Applique le retour d'une semaine au reste du plan. */
-export function adjustPlan(plan: Plan, feedback: WeekFeedback): Adjustment {
+const SEVERITY: Record<Decision, number> = { progresser: 0, maintenir: 1, alleger: 2 };
+
+/**
+ * Applique le retour d'une semaine au reste du plan. `floor` impose une décision minimale
+ * (par exemple « maintenir » quand les métriques de récupération se dégradent).
+ */
+export function adjustPlan(
+  plan: Plan,
+  feedback: WeekFeedback,
+  floor?: { decision: Decision; reasons: string[] },
+): Adjustment {
   const week = plan.weeks.find((w) => w.index === feedback.weekIndex);
   if (!week) throw new RangeError(`Semaine ${feedback.weekIndex} introuvable.`);
-  const { decision, reasons } = decide(week, feedback);
+  const decided = decide(week, feedback);
+  const forced = floor && SEVERITY[floor.decision] > SEVERITY[decided.decision];
+  const decision = forced ? floor.decision : decided.decision;
+  const reasons = forced
+    ? [...floor.reasons, ...decided.reasons.filter((r) => !r.startsWith("Semaine bien passée"))]
+    : [...decided.reasons, ...(floor?.reasons ?? [])];
   const next = week.index + 1;
   if (decision === "progresser" || next > plan.profile.weeks) return { decision, reasons, plan };
 

@@ -57,6 +57,28 @@ Chaque séance a un **détail** (`src/engine/workout.ts`) : blocs de course avec
 (endurance, seuil, VMA, objectif) calculées à partir du temps sur 5 km, ou exercices de renfo
 à la maison, en salle, ou en alternant les deux selon le questionnaire.
 
+## Suivi au quotidien
+
+- **Retour de séance** : faite ou non, durée, difficulté 1–10, sensations (très bien → horrible),
+  gêne ou douleur, activité Strava liée, journal muscu (avec suggestions d'exercices et rappel de
+  la dernière perf), commentaire.
+- **Séance non faite** : cause (fatigue, temps, travail, maladie, douleur, météo…) et décision
+  appliquée au plan (`src/lib/coaching.ts`) : report à un jour libre de la semaine, allègement des
+  2 séances suivantes, temps ajouté à la prochaine séance facile, ou abandon.
+- **Séances libres** (hors plan) : comptées dans la charge, le journal et les records.
+- **Conseil** d'après les 3 derniers retours, **dernière séance** avec ses données Strava,
+  **chiffres clés** (prochaine séance, séances faites, km courus).
+- **Export montre** : chaque séance de course se télécharge au format `.FIT` (entraînement
+  structuré avec plages d'allure, via le SDK officiel Garmin, `src/lib/fit.ts`).
+- **Calendrier** : semaine en colonnes sur grand écran, couleurs par type de séance, périodes
+  perso (école, entreprise…), phases et règles du cadre, tableau des séances de qualité.
+- **Analyses** : charge réalisée et prévue, séances par semaine, monotonie et contrainte ; course
+  par course avec verdict d'allure, efficacité aérobie, cadence, répartition facile / intense
+  (`src/lib/insights.ts`) ; 1RM estimé (Epley) ; **Forme** : VO2 max, VFC, FC au repos, sommeil
+  et état d'entraînement saisis chaque semaine. Une VFC en baisse ou une FC au repos en hausse
+  empêche le bilan de monter le volume.
+- **Records** : distances de 400 m au marathon, en temps ou en allure, top 3 avec lien Strava.
+
 ## Comptes et synchronisation (Supabase)
 
 Avec un compte (e-mail et mot de passe), le plan, les retours, les bilans et les activités

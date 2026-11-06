@@ -164,7 +164,7 @@ export interface PersonalBest {
   label: string;
   distanceM: number;
   /** Les 3 meilleurs temps, une seule fois par sortie. */
-  top: { timeSec: number; pace: string; date: ISODate; activity: string }[];
+  top: { timeSec: number; pace: string; date: ISODate; activity: string; activityId: number }[];
 }
 
 /** Records personnels de course par distance (meilleurs efforts Strava), du plus court au plus long. */
@@ -188,6 +188,7 @@ export function personalBests(state: AppState): PersonalBest[] {
         pace: `${formatPace(e.elapsedSec / (e.distanceM / 1000))} /km`,
         date: a.date,
         activity: a.name,
+        activityId: a.id,
       });
     }
   }

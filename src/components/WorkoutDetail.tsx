@@ -113,6 +113,24 @@ export function ActivitySummary({ activity }: { activity: Activity }) {
         <span className="tabular-nums">{formatPace(pace)} /km</span>
       )}
       {activity.avgHr && <span className="tabular-nums">FC {activity.avgHr}</span>}
+      {activity.elevationM ? (
+        <span className="tabular-nums">{activity.elevationM} m D+</span>
+      ) : null}
+      <StravaLink id={activity.id} />
     </p>
+  );
+}
+
+/** Lien vers l'activité sur Strava. */
+export function StravaLink({ id, label = "Voir sur Strava" }: { id: number; label?: string }) {
+  return (
+    <a
+      href={`https://www.strava.com/activities/${id}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-xs font-semibold text-[#fc4c02] hover:underline"
+    >
+      {label} ↗
+    </a>
   );
 }

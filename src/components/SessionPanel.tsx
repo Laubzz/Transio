@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { SESSION_DESCRIPTION, type Session } from "@/engine";
 import { formatLong, type ISODate } from "@/lib/dates";
+import { MISS_ACTION_LABEL, MISS_CAUSE_LABEL, SENSATION_LABEL, recordMissed } from "@/lib/coaching";
 import { KIND_LABEL, RPE_LABEL, sessionLabel } from "@/lib/labels";
 import { feedbackKey, isReviewed, matchActivity, recordFeedback, type AppState } from "@/lib/state";
 import { saveState } from "@/lib/store";
 import { FeedbackForm } from "./FeedbackForm";
+import { FitButton } from "./FitButton";
 import { ActivitySummary, WorkoutDetail } from "./WorkoutDetail";
 import { Button } from "./ui";
 
@@ -34,7 +36,9 @@ export const STATUS_STYLE: Record<SessionStatus, { label: string; className: str
 export function StatusBadge({ status }: { status: SessionStatus }) {
   const s = STATUS_STYLE[status];
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${s.className}`}>
+    <span
+      className={`rounded-full border px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${s.className}`}
+    >
       {s.label}
     </span>
   );
@@ -64,6 +68,10 @@ export function SessionPanel({
   const [editing, setEditing] = useState(false);
   const week = state.plan.weeks[weekIndex - 1];
   const activity = date <= today ? matchActivity(state, date, session.kind, session.impact) : null;
+
+  const candidates = (state.activities ?? []).filter((a) => a.date === date && a.sport !== "autre");
+  const linked = candidates.find((a) => a.id === fb?.activityId) ?? activity;
+  const [error, setError] = useState<string | null>(null);
 
   const save = (next: Parameters<typeof recordFeedback>[3]) => {
     saveState(recordFeedback(state, weekIndex, session.day, next));
@@ -99,6 +107,13 @@ export function SessionPanel({
         <p className={`mt-2 text-sm ${hero ? "text-night/80" : "text-muted"}`}>
           {SESSION_DESCRIPTION[session.kind]}
         </p>
+        {session.note && (
+          <p
+            className={`mt-2 rounded-lg px-2 py-1 text-xs font-semibold ${hero ? "bg-night/15 text-night" : "bg-origin/10 text-origin"}`}
+          >
+            {session.note}
+          </p>
+        )}
       </div>
 
       <details
@@ -110,10 +125,13 @@ export function SessionPanel({
         </summary>
         <div className="mt-3">
           <WorkoutDetail profile={state.plan.profile} week={week} session={session} />
+          {session.impact && (
+            <FitButton profile={state.plan.profile} week={week} session={session} date={date} />
+          )}
         </div>
       </details>
 
-      {activity && (
+      {linked && (
         <div
           className={
             hero
@@ -121,7 +139,7 @@ export function SessionPanel({
               : "border-t border-white/10 px-4 py-3"
           }
         >
-          <ActivitySummary activity={activity} />
+          <ActivitySummary activity={linked} />
         </div>
       )}
 
@@ -129,13 +147,28 @@ export function SessionPanel({
         {status === "a-venir" ? (
           <p className="text-sm text-muted">Tu pourras la noter le jour venu.</p>
         ) : editing || (status === "a-noter" && hero && !locked) ? (
-          <FeedbackForm
-            session={session}
-            activity={activity}
-            initial={fb}
-            onSave={save}
-            onCancel={editing ? () => setEditing(false) : undefined}
-          />
+          <>
+            <FeedbackForm
+              state={state}
+              weekIndex={weekIndex}
+              session={session}
+              today={today}
+              candidates={candidates}
+              initial={fb}
+              onSave={save}
+              onMiss={(m) => {
+                try {
+                  saveState(recordMissed(state, weekIndex, session.day, m));
+                  setEditing(false);
+                  setError(null);
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+              onCancel={editing ? () => setEditing(false) : undefined}
+            />
+            {error && <p className="mt-2 text-sm text-warn">{error}</p>}
+          </>
         ) : fb ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm">
@@ -145,9 +178,24 @@ export function SessionPanel({
                   {RPE_LABEL[fb.rpe ?? 0].toLowerCase()}
                   {fb.pain === "gene" && <span className="text-origin"> · gêne</span>}
                   {fb.pain === "douleur" && <span className="text-warn"> · douleur</span>}
+                  {fb.sensation && (
+                    <span className="text-muted">
+                      {" "}
+                      · {SENSATION_LABEL[fb.sensation].toLowerCase()}
+                    </span>
+                  )}
                 </>
               ) : (
-                <strong>Pas faite</strong>
+                <>
+                  <strong>Pas faite</strong>
+                  {fb.missed && (
+                    <span className="text-muted">
+                      {" "}
+                      · {MISS_CAUSE_LABEL[fb.missed.cause]} ·{" "}
+                      {MISS_ACTION_LABEL[fb.missed.action].toLowerCase()}
+                    </span>
+                  )}
+                </>
               )}
               {fb.strength?.map((r) => (
                 <span key={r.exercise} className="block text-muted">

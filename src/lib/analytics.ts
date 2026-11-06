@@ -14,18 +14,39 @@ export interface WeekStats {
   due: number;
   done: number;
   monotony: number | null;
+  /** Séances prévues sur toute la semaine. */
+  planned: number;
+  /** Charge prévue : durée × difficulté visée de chaque séance. */
+  plannedLoad: number;
+  /** Contrainte : charge × monotonie. */
+  strain: number | null;
+  /** Séances libres (hors plan) faites dans la semaine. */
+  free: number;
 }
 
 /** Séances faites d'une semaine, au format du moteur. */
 function doneSessions(state: AppState, weekIndex: number): (DoneSession & { impact: boolean })[] {
   const week = state.plan.weeks[weekIndex - 1];
-  return week.sessions.flatMap((s) => {
+  const planned = week.sessions.flatMap((s) => {
     const fb = state.feedback[feedbackKey(weekIndex, s.day)];
     if (!fb?.done || fb.rpe === undefined) return [];
     return [
       { day: s.day, durationMin: fb.durationMin ?? s.durationMin, rpe: fb.rpe, impact: s.impact },
     ];
   });
+  // Séances libres de la semaine (hors plan) : elles comptent dans la charge.
+  const monday = sessionDate(state.startDate, weekIndex, 0);
+  const free = (state.freeSessions ?? [])
+    .filter((f) => f.date >= monday && f.date <= sessionDate(state.startDate, weekIndex, 6))
+    .map((f) => ({
+      day: Math.round(
+        (Date.parse(`${f.date}T12:00:00Z`) - Date.parse(`${monday}T12:00:00Z`)) / 86_400_000,
+      ),
+      durationMin: f.durationMin,
+      rpe: f.rpe,
+      impact: f.sport === "course",
+    }));
+  return [...planned, ...free];
 }
 
 /** Statistiques des semaines commencées, jusqu'à aujourd'hui. */
@@ -35,14 +56,22 @@ export function weeklyStats(state: AppState, today: ISODate): WeekStats[] {
   const last = pos.status === "avant" ? 0 : pos.status === "termine" ? total : pos.weekIndex;
   return state.plan.weeks.slice(0, last).map((w) => {
     const done = doneSessions(state, w.index);
+    const load = done.reduce((a, s) => a + s.durationMin * s.rpe, 0);
+    const mono = done.length ? monotony(dailyLoads(done)) : null;
+    const monday = sessionDate(state.startDate, w.index, 0);
+    const sunday = sessionDate(state.startDate, w.index, 6);
     return {
+      planned: w.sessions.length,
+      plannedLoad: w.sessions.reduce((a, s) => a + s.durationMin * s.targetRpe, 0),
+      strain: mono !== null ? Math.round(load * mono) : null,
+      free: (state.freeSessions ?? []).filter((f) => f.date >= monday && f.date <= sunday).length,
       weekIndex: w.index,
       plannedRun: w.runMinutes,
       doneRun: done.filter((s) => s.impact).reduce((a, s) => a + s.durationMin, 0),
-      load: done.reduce((a, s) => a + s.durationMin * s.rpe, 0),
+      load,
       due: w.sessions.filter((s) => sessionDate(state.startDate, w.index, s.day) <= today).length,
       done: w.sessions.filter((s) => state.feedback[feedbackKey(w.index, s.day)]?.done).length,
-      monotony: done.length ? monotony(dailyLoads(done)) : null,
+      monotony: mono,
     };
   });
 }
