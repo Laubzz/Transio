@@ -82,6 +82,9 @@ export function Profile() {
           {state.reviews.length} bilan{state.reviews.length > 1 ? "s" : ""} fait
           {state.reviews.length > 1 ? "s" : ""}.
         </p>
+        <ButtonLink href="/suite" variant="ghost" className="mt-4">
+          Préparer la suite
+        </ButtonLink>
       </Card>
 
       <Card>

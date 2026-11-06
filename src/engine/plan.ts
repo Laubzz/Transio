@@ -37,6 +37,7 @@ export function validateProfile(p: Profile): void {
 
 /** Minutes de course de la première semaine. */
 export function startMinutes(p: Profile): number {
+  if (p.startRunMinutes) return Math.max(15 * p.runDaysPerWeek, floor5(p.startRunMinutes));
   let m = START_RUN_MINUTES[p.originSport];
   if (p.injuries.some((i) => LOWER_LIMB.includes(i.zone))) m *= INJURY_START_FACTOR;
   if (p.weeklyHoursPast < LOW_PAST_VOLUME_HOURS) m *= LOW_PAST_VOLUME_FACTOR;
@@ -117,7 +118,7 @@ function runKinds(profile: Profile, week: number, phase: Phase, deload: boolean)
     return kinds;
   }
   if (deload) return kinds;
-  if (RUN_WALK_START[profile.originSport] && week <= RUN_WALK_WEEKS) {
+  if (RUN_WALK_START[profile.originSport] && (profile.cycle ?? 1) === 1 && week <= RUN_WALK_WEEKS) {
     return kinds.map((k) => (k === "endurance" ? "course-marche" : k));
   }
   if (phase === "rythme") kinds[n - 2] = "tempo";

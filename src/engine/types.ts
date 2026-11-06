@@ -2,7 +2,7 @@
 export type OriginSport = "velo" | "sport-co" | "musculation" | "natation" | "reprise";
 
 /** Objectif de course visé à la fin du plan. */
-export type Goal = "5k" | "10k" | "trail";
+export type Goal = "5k" | "10k" | "semi" | "trail";
 
 /** Phases successives d'un plan de transition. */
 export type Phase = "base" | "rythme" | "specifique" | "test";
@@ -34,6 +34,13 @@ export interface Profile {
   strengthPlace?: StrengthPlace;
   /** Temps de référence sur 5 km, en secondes, pour calculer les allures. */
   reference5kSec?: number;
+  /**
+   * Numéro du cycle : 1 pour le plan de transition, 2 et plus pour la suite.
+   * Après la transition, plus de course-marche et un départ au volume déjà atteint.
+   */
+  cycle?: number;
+  /** Minutes de course de la première semaine, reprises du cycle précédent. */
+  startRunMinutes?: number;
 }
 
 /** Renforcement à la maison (poids du corps), en salle de muscu, ou en alternant les deux. */

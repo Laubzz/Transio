@@ -6,6 +6,7 @@ import { formatLong, position, sessionDate } from "@/lib/dates";
 import { PHASE_LABEL, sessionLabel } from "@/lib/labels";
 import { feedbackKey, pendingReview } from "@/lib/state";
 import { useAppState, useToday } from "@/lib/store";
+import { NextCyclePrompt } from "./NextCycle";
 import { SessionPanel } from "./SessionPanel";
 import { ReviewPrompt, ReviewResult } from "./WeekReview";
 import { ButtonLink, Card, Kicker } from "./ui";
@@ -54,22 +55,24 @@ export function Today() {
   const lastReview = state.reviews.at(-1);
 
   if (pos.status === "termine") {
+    const cycle = plan.profile.cycle ?? 1;
     return (
       <div className="space-y-6">
         <header>
           <Kicker>Plan terminé</Kicker>
-          <h1 className="mt-2 text-3xl font-extrabold">Bravo, la transition est faite</h1>
+          <h1 className="mt-2 text-3xl font-extrabold">
+            {cycle === 1 ? "Bravo, la transition est faite" : "Bravo, objectif bouclé"}
+          </h1>
           <p className="mt-2 text-muted">
-            Tu peux revoir ton plan ou en créer un nouveau avec un autre objectif.
+            Tes séances et tes records restent dans ton journal. Choisis la suite pour continuer à
+            progresser.
           </p>
         </header>
         {pending !== null && <ReviewPrompt state={state} weekIndex={pending} />}
-        <div className="flex flex-wrap gap-2">
-          <ButtonLink href="/calendrier" variant="ghost">
-            Revoir le plan
-          </ButtonLink>
-          <ButtonLink href="/questionnaire">Nouveau plan</ButtonLink>
-        </div>
+        <NextCyclePrompt finished />
+        <ButtonLink href="/calendrier" variant="ghost">
+          Revoir le plan
+        </ButtonLink>
       </div>
     );
   }
@@ -94,6 +97,7 @@ export function Today() {
       </header>
 
       {pending !== null && <ReviewPrompt state={state} weekIndex={pending} />}
+      {week.phase === "test" && <NextCyclePrompt finished={false} />}
       {pending === null && lastReview && lastReview.weekIndex === week.index - 1 && (
         <ReviewResult review={lastReview} />
       )}

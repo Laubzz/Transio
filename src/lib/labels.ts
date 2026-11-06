@@ -29,6 +29,7 @@ export const ORIGIN_HINT: Record<OriginSport, string> = {
 };
 
 export const GOAL_HINT: Record<Goal, string> = {
+  semi: "21,1 km, une fois les bases installées",
   "5k": "Courir 5 km sans s'arrêter",
   "10k": "Courir 10 km à son rythme",
   trail: "Un premier trail court",

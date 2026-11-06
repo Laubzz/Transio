@@ -64,7 +64,23 @@ importées sont enregistrés dans la table `user_state` et retrouvés sur tous l
 (`src/lib/sync.ts`). Le navigateur garde une copie locale qui sert de cache. Les règles RLS
 limitent chaque utilisateur à ses propres lignes (`supabase/migrations/`).
 
-Sans les variables Supabase, l'app fonctionne sans compte et garde les données dans le navigateur.
+Le projet Supabase de Transio est configuré par défaut (`src/lib/config.ts`) : l'URL et la clé
+« publishable » sont publiques par nature, les règles RLS protègent les données.
+`NEXT_PUBLIC_ACCOUNTS=off` désactive les comptes (données gardées dans le navigateur).
+
+## Google Agenda et autres agendas
+
+Dans le calendrier, « Synchroniser avec Google Agenda » crée un lien d'abonnement privé
+(table `calendar_feeds`, jeton secret de 32 caractères). La route `/api/calendrier/[jeton]`
+renvoie le plan au format iCalendar (`src/lib/ics.ts`) : un événement par séance, avec le
+détail et les allures, à l'heure choisie ou sur la journée. Google Agenda relit l'abonnement
+de lui-même (en général en quelques heures). Un fichier `.ics` peut aussi être téléchargé.
+
+## La suite du plan
+
+À la dernière semaine, puis une fois le plan terminé, l'app propose de choisir le prochain
+objectif. `startNextCycle` archive le cycle (journal et records conservés) et génère un nouveau
+plan qui repart à 90 % du volume atteint, sans course-marche, avec les mêmes garde-fous.
 
 ## Strava
 
