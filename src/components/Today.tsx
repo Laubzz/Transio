@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { ORIGIN_LABEL } from "@/engine";
 import { formatLong, position, sessionDate } from "@/lib/dates";
-import { PHASE_LABEL, sessionLabel } from "@/lib/labels";
+import { periodOn } from "@/lib/coaching";
+import { PHASE_LABEL } from "@/lib/labels";
 import { feedbackKey, pendingReview } from "@/lib/state";
 import { useAppState, useToday } from "@/lib/store";
 import { NextCyclePrompt } from "./NextCycle";
+import { AdviceCard, KeyTiles, LastSessionCard } from "./Coaching";
+import { AddFreeSession, FreeSessionCard } from "./FreeSession";
 import { SessionPanel } from "./SessionPanel";
 import { ReviewPrompt, ReviewResult } from "./WeekReview";
 import { ButtonLink, Card, Kicker } from "./ui";
@@ -82,8 +85,6 @@ export function Today() {
   const toRate = week.sessions.filter(
     (s) => s.day < pos.day && !state.feedback[feedbackKey(week.index, s.day)],
   ).length;
-  const next = week.sessions.find((s) => s.day > pos.day) ?? plan.weeks[pos.weekIndex]?.sessions[0];
-  const nextWeekIndex = next && week.sessions.includes(next) ? week.index : week.index + 1;
 
   return (
     <div className="space-y-6">
@@ -93,7 +94,14 @@ export function Today() {
           {week.deload && " · allégée"}
         </Kicker>
         <h1 className="mt-2 text-3xl font-extrabold">Aujourd&apos;hui</h1>
-        <p className="mt-1 text-muted first-letter:uppercase">{formatLong(today)}</p>
+        <p className="mt-1 text-muted first-letter:uppercase">
+          {formatLong(today)}
+          {periodOn(state, today) && (
+            <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold text-ink">
+              {periodOn(state, today)!.label}
+            </span>
+          )}
+        </p>
       </header>
 
       {pending !== null && <ReviewPrompt state={state} weekIndex={pending} />}
@@ -136,20 +144,16 @@ export function Today() {
         </Link>
       )}
 
-      {next && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold text-muted">Prochaine séance</h2>
-          <Card className="flex items-center justify-between gap-3">
-            <div>
-              <p className="font-semibold">{sessionLabel(next.kind, origin)}</p>
-              <p className="text-sm text-muted first-letter:uppercase">
-                {formatLong(sessionDate(startDate, nextWeekIndex, next.day))}
-              </p>
-            </div>
-            <p className="text-sm font-semibold whitespace-nowrap">{next.durationMin} min</p>
-          </Card>
-        </section>
-      )}
+      {(state.freeSessions ?? [])
+        .filter((f) => f.date === today)
+        .map((f) => (
+          <FreeSessionCard key={f.id} state={state} fs={f} />
+        ))}
+      <AddFreeSession state={state} date={today} label="+ Séance libre aujourd'hui" />
+
+      <KeyTiles state={state} today={today} />
+      <LastSessionCard state={state} today={today} />
+      <AdviceCard state={state} />
     </div>
   );
 }

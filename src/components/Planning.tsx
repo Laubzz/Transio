@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { ORIGIN_LABEL } from "@/engine";
 import { formatShort, position, sessionDate } from "@/lib/dates";
-import { DAYS_SHORT, PHASE_LABEL, sessionLabel } from "@/lib/labels";
+import { periodOn } from "@/lib/coaching";
+import { DAYS_SHORT, KIND_COLOR, PHASE_LABEL, sessionLabel } from "@/lib/labels";
 import { isReviewed, pendingReview } from "@/lib/state";
 import { useAppState, useToday } from "@/lib/store";
 import { CalendarSync } from "./CalendarSync";
+import { FREE_SPORT_LABEL, FreeSessionCard, FreeSessionForm } from "./FreeSession";
+import { PlanFramework, QualitySessions } from "./PlanInfo";
 import { SessionPanel, StatusBadge, sessionStatus } from "./SessionPanel";
 import { ReviewPrompt, ReviewResult } from "./WeekReview";
 import { Button, Kicker } from "./ui";
@@ -24,6 +27,7 @@ export function Planning() {
   const today = useToday();
   const [picked, setPicked] = useState<number | null>(null);
   const [openDay, setOpenDay] = useState<number | null>(null);
+  const [addDay, setAddDay] = useState<number | null>(null);
   if (!state || !today) return null;
 
   const { plan, startDate } = state;
@@ -46,6 +50,7 @@ export function Planning() {
   const go = (w: number) => {
     setPicked(Math.min(total, Math.max(1, w)));
     setOpenDay(null);
+    setAddDay(null);
   };
 
   return (
@@ -136,68 +141,120 @@ export function Planning() {
         nextReview === weekIndex && <ReviewPrompt state={state} weekIndex={weekIndex} />
       )}
 
-      <ol className="space-y-2">
+      <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+        {(Object.keys(KIND_COLOR) as (keyof typeof KIND_COLOR)[]).map((k) => (
+          <span key={k} className="flex items-center gap-1.5">
+            <span
+              className="h-2.5 w-2.5 rounded-sm"
+              style={{ background: KIND_COLOR[k] }}
+              aria-hidden
+            />
+            {sessionLabel(k, origin)}
+          </span>
+        ))}
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm border border-dashed border-muted" aria-hidden />
+          Séance libre
+        </span>
+      </p>
+
+      <ol className="grid gap-2 xl:grid-cols-7">
         {DAYS_SHORT.map((label, day) => {
           const s = week.sessions.find((x) => x.day === day);
           const date = sessionDate(startDate, weekIndex, day);
           const isToday = date === today;
-          if (!s) {
-            return (
-              <li key={day} className="flex items-center gap-3 px-4 py-2 text-sm text-muted">
-                <span className={`w-10 font-mono text-xs ${isToday ? "font-bold text-ink" : ""}`}>
-                  {label}
+          const period = periodOn(state, date);
+          const frees = (state.freeSessions ?? []).filter((f) => f.date === date);
+          return (
+            <li
+              key={day}
+              className={`flex flex-col gap-2 rounded-2xl border p-2 xl:min-h-44 ${
+                isToday ? "border-target/60 bg-target/5" : "border-white/10"
+              }`}
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-1 px-1 text-xs">
+                <span className={`font-mono ${isToday ? "font-bold text-target" : "text-muted"}`}>
+                  {label} {formatShort(date)}
                 </span>
-                Repos
-              </li>
-            );
-          }
-          if (openDay === day) {
-            return (
-              <li key={day}>
-                <SessionPanel
-                  state={state}
-                  weekIndex={weekIndex}
-                  session={s}
-                  date={date}
-                  today={today}
-                  originLabel={origin}
-                />
+                {period && (
+                  <span className={`font-semibold ${period.busy ? "text-origin" : "text-muted"}`}>
+                    {period.label}
+                  </span>
+                )}
+              </div>
+              {s ? (
                 <button
                   type="button"
-                  onClick={() => setOpenDay(null)}
-                  className="mt-1 px-4 text-xs text-muted hover:text-ink"
+                  onClick={() => setOpenDay(openDay === day ? null : day)}
+                  aria-expanded={openDay === day}
+                  className={`flex w-full flex-col gap-1 rounded-xl border-l-4 bg-card p-2.5 text-left text-sm transition hover:bg-card-2 ${
+                    openDay === day ? "ring-1 ring-ink/40" : ""
+                  }`}
+                  style={{ borderLeftColor: KIND_COLOR[s.kind] }}
                 >
-                  Replier
+                  <span className="font-semibold" style={{ color: KIND_COLOR[s.kind] }}>
+                    {sessionLabel(s.kind, origin)}
+                  </span>
+                  <span className="text-xs text-muted tabular-nums">
+                    {s.durationMin} min · visé {s.targetRpe}/10
+                  </span>
+                  {s.note && <span className="text-xs text-origin">{s.note}</span>}
+                  <span className="mt-1">
+                    <StatusBadge status={sessionStatus(state, weekIndex, s, date, today)} />
+                  </span>
                 </button>
-              </li>
-            );
-          }
-          return (
-            <li key={day}>
+              ) : (
+                <p className="px-1 text-xs text-muted italic">Repos</p>
+              )}
+              {frees.map((f) => (
+                <p
+                  key={f.id}
+                  className="rounded-xl border border-dashed border-white/20 p-2 text-xs"
+                >
+                  <strong>Libre · {FREE_SPORT_LABEL[f.sport]}</strong>
+                  <br />
+                  {f.durationMin} min · {f.rpe}/10
+                </p>
+              ))}
               <button
                 type="button"
-                onClick={() => setOpenDay(day)}
-                className={`flex w-full items-center gap-3 rounded-2xl border bg-card px-4 py-3 text-left transition hover:border-white/25 ${
-                  isToday ? "border-target/60" : "border-white/10"
-                }`}
+                onClick={() => setAddDay(addDay === day ? null : day)}
+                className="mt-auto rounded-lg border border-dashed border-white/15 px-2 py-1 text-xs text-muted hover:text-ink"
               >
-                <span
-                  className={`w-10 font-mono text-xs ${isToday ? "font-bold text-target" : "text-muted"}`}
-                >
-                  {label}
-                </span>
-                <span
-                  className={`h-2 w-2 shrink-0 rounded-full ${s.impact ? "bg-target" : "bg-origin"}`}
-                  aria-hidden
-                />
-                <span className="flex-1 font-semibold">{sessionLabel(s.kind, origin)}</span>
-                <span className="text-sm text-muted tabular-nums">{s.durationMin} min</span>
-                <StatusBadge status={sessionStatus(state, weekIndex, s, date, today)} />
+                + Séance libre
               </button>
             </li>
           );
         })}
       </ol>
+
+      {openDay !== null && week.sessions.some((x) => x.day === openDay) && (
+        <SessionPanel
+          key={`${weekIndex}-${openDay}`}
+          state={state}
+          weekIndex={weekIndex}
+          session={week.sessions.find((x) => x.day === openDay)!}
+          date={sessionDate(startDate, weekIndex, openDay)}
+          today={today}
+          originLabel={origin}
+        />
+      )}
+      {addDay !== null && (
+        <div className="rounded-2xl border border-white/10 bg-card p-4">
+          <h3 className="mb-4 font-semibold">Nouvelle séance libre</h3>
+          <FreeSessionForm
+            key={`${weekIndex}-${addDay}`}
+            state={state}
+            date={sessionDate(startDate, weekIndex, addDay)}
+            onDone={() => setAddDay(null)}
+          />
+        </div>
+      )}
+      {(state.freeSessions ?? [])
+        .filter((f) => f.date >= sessionDate(startDate, weekIndex, 0) && f.date <= weekEnd)
+        .map((f) => (
+          <FreeSessionCard key={f.id} state={state} fs={f} />
+        ))}
 
       {!isReviewed(state, weekIndex) && weekEnd < today && nextReview !== weekIndex && (
         <p className="text-sm text-muted">
@@ -205,6 +262,8 @@ export function Planning() {
         </p>
       )}
 
+      <PlanFramework state={state} />
+      <QualitySessions state={state} today={today} />
       <CalendarSync state={state} />
     </div>
   );

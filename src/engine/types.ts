@@ -66,6 +66,10 @@ export interface Session {
   /** Séance à impact (course à pied). */
   impact: boolean;
   description: string;
+  /** Jour d'origine quand la séance a été reportée. */
+  movedFrom?: number;
+  /** Ajustement appliqué à la séance (report, allègement, temps ajouté). */
+  note?: string;
 }
 
 export interface Week {

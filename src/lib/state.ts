@@ -18,6 +18,20 @@ export interface StrengthSet {
   loadKg: number;
 }
 
+export type Sensation = "tres-bien" | "bien" | "moyen" | "bof" | "horrible";
+
+export type MissCause = "fatigue" | "temps" | "travail" | "maladie" | "douleur" | "meteo" | "autre";
+
+/** Que faire d'une séance non réalisée. */
+export type MissAction = "reporter" | "alleger" | "ajouter" | "abandonner";
+
+export interface MissedInfo {
+  cause: MissCause;
+  action: MissAction;
+  /** Jour (0 = lundi) où la séance a été reportée. */
+  movedTo?: number;
+}
+
 /** Retour enregistré sur une séance. */
 export interface StoredFeedback extends SessionFeedback {
   /** Durée réellement faite, en minutes (sinon la durée prévue). */
@@ -25,6 +39,47 @@ export interface StoredFeedback extends SessionFeedback {
   comment?: string;
   /** Exercices faits, pour une séance de renforcement. */
   strength?: StrengthSet[];
+  sensation?: Sensation;
+  /** Activité Strava liée à la séance. */
+  activityId?: number;
+  /** Séance non réalisée : pourquoi et ce qui a été fait du plan. */
+  missed?: MissedInfo;
+}
+
+/** Séance faite hors plan. */
+export interface FreeSession {
+  id: string;
+  date: ISODate;
+  sport: "course" | "renfo" | "velo" | "autre";
+  durationMin: number;
+  rpe: number;
+  sensation?: Sensation;
+  comment?: string;
+  strength?: StrengthSet[];
+  activityId?: number;
+}
+
+/** Métriques de la montre saisies chaque semaine (clé : lundi de la semaine). */
+export interface WeekMetrics {
+  vo2max?: number;
+  /** VFC moyenne des nuits, en ms. */
+  hrv?: number;
+  restingHr?: number;
+  sleepH?: number;
+  /** État d'entraînement affiché par la montre. */
+  status?: string;
+  /** Fréquence cardiaque maximale connue, pour les zones. */
+  maxHr?: number;
+}
+
+/** Période de la vie perso (école, entreprise, vacances, déplacement…) affichée au calendrier. */
+export interface Period {
+  id: string;
+  start: ISODate;
+  end: ISODate;
+  label: string;
+  /** Période chargée : les séances de semaine peuvent être allégées. */
+  busy?: boolean;
 }
 
 const positive = (n: unknown) =>
@@ -66,6 +121,9 @@ export interface AppState {
   history?: ArchivedCycle[];
   /** Export agenda : heure des séances (« 18:30 »), ou `null` pour la journée entière. */
   calendar?: { time: string | null };
+  freeSessions?: FreeSession[];
+  metrics?: Record<ISODate, WeekMetrics>;
+  periods?: Period[];
 }
 
 /** Un cycle terminé, gardé pour le journal et les records. */
@@ -90,6 +148,8 @@ export interface Activity {
   /** Temps écoulé, pauses comprises. */
   elapsedSec?: number;
   maxHr?: number;
+  /** Cadence moyenne en pas par minute (course). */
+  cadence?: number;
   /** Nombre de records personnels battus pendant l'activité (selon Strava). */
   prCount?: number;
   /**
@@ -134,8 +194,10 @@ export function recordFeedback(
         durationMin: positive(fb.durationMin) && Math.round(fb.durationMin!),
         comment: fb.comment?.trim() || undefined,
         strength: cleanStrength(fb.strength),
+        sensation: fb.sensation,
+        activityId: fb.activityId,
       }
-    : { done: false, comment: fb.comment?.trim() || undefined };
+    : { done: false, comment: fb.comment?.trim() || undefined, missed: fb.missed };
   return { ...state, feedback: { ...state.feedback, [feedbackKey(weekIndex, day)]: clean } };
 }
 
@@ -167,7 +229,13 @@ export function reviewWeek(state: AppState, weekIndex: number): AppState {
   if (isReviewed(state, weekIndex)) throw new Error(`Bilan de la semaine ${weekIndex} déjà fait.`);
   const earlier = pendingReview(state, weekIndex);
   if (earlier !== null) throw new Error(`Fais d'abord le bilan de la semaine ${earlier}.`);
-  const { decision, reasons, plan } = adjustPlan(state.plan, weekFeedback(state, weekIndex));
+  const monday = addDays(state.startDate, (weekIndex - 1) * 7);
+  const floor = recoveryAlert(state.metrics ?? {}, monday);
+  const { decision, reasons, plan } = adjustPlan(
+    state.plan,
+    weekFeedback(state, weekIndex),
+    floor ? { decision: "maintenir", reasons: floor } : undefined,
+  );
   return { ...state, plan, reviews: [...state.reviews, { weekIndex, decision, reasons }] };
 }
 
@@ -182,6 +250,10 @@ export function normalizeState(value: unknown): AppState | null {
     feedback: s.feedback ?? {},
     reviews: s.reviews ?? [],
     activities: s.activities ?? [],
+    history: s.history ?? [],
+    freeSessions: s.freeSessions ?? [],
+    metrics: s.metrics ?? {},
+    periods: s.periods ?? [],
   };
 }
 
@@ -342,6 +414,40 @@ export function startNextCycle(state: AppState, choice: NextCycleChoice): AppSta
     ...createState(profile, choice.startDate),
     activities: state.activities ?? [],
     calendar: state.calendar,
+    freeSessions: state.freeSessions,
+    metrics: state.metrics,
+    periods: state.periods,
     history: [...(state.history ?? []), archived],
   };
+}
+
+/**
+ * Alerte de récupération d'après les métriques de la montre : VFC en baisse d'au moins 10 %
+ * ou FC au repos en hausse d'au moins 5 bpm par rapport à la moyenne des 4 semaines d'avant.
+ */
+export function recoveryAlert(
+  metrics: Record<ISODate, WeekMetrics>,
+  monday: ISODate,
+): string[] | null {
+  const cur = metrics[monday];
+  if (!cur) return null;
+  const prev = [1, 2, 3, 4].map((k) => metrics[addDays(monday, -7 * k)]).filter(Boolean);
+  const avg = (key: "hrv" | "restingHr") => {
+    const v = prev.map((m) => m[key]).filter((x): x is number => typeof x === "number");
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+  };
+  const out: string[] = [];
+  const hrv = avg("hrv");
+  if (hrv && cur.hrv && cur.hrv <= hrv * 0.9) {
+    out.push(
+      `VFC en baisse (${cur.hrv} ms contre ${Math.round(hrv)} en moyenne) : on ne monte pas le volume.`,
+    );
+  }
+  const rhr = avg("restingHr");
+  if (rhr && cur.restingHr && cur.restingHr >= rhr + 5) {
+    out.push(
+      `FC au repos en hausse (${cur.restingHr} bpm contre ${Math.round(rhr)}) : on ne monte pas le volume.`,
+    );
+  }
+  return out.length ? out : null;
 }

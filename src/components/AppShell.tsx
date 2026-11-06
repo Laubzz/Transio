@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Logo className="text-lg" />
         </header>
 
-        <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-6 pb-28 md:px-8 md:pt-10 md:pb-12">
+        <main className="mx-auto w-full max-w-3xl flex-1 xl:max-w-6xl px-4 pt-6 pb-28 md:px-8 md:pt-10 md:pb-12">
           {state === undefined ||
           account.auth === "loading" ||
           (account.auth === "signed-in" && account.sync === "loading") ? (

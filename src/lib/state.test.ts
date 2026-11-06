@@ -141,7 +141,14 @@ describe("état de l'app", () => {
 
   it("relit un état sauvegardé et ignore un état illisible", () => {
     const s = fresh();
-    expect(parseState(JSON.stringify(s))).toEqual({ ...s, activities: [] });
+    expect(parseState(JSON.stringify(s))).toEqual({
+      ...s,
+      activities: [],
+      history: [],
+      freeSessions: [],
+      metrics: {},
+      periods: [],
+    });
     expect(parseState(null)).toBeNull();
     expect(parseState("pas du json")).toBeNull();
     expect(parseState(JSON.stringify({ version: 2 }))).toBeNull();

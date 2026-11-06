@@ -75,3 +75,32 @@ describe("adjustPlan", () => {
     expect(next.weeks.at(-1)!.sessions.some((s) => s.kind === "test")).toBe(true);
   });
 });
+
+describe("décision minimale imposée", () => {
+  it("maintient le volume malgré une bonne semaine quand la récupération se dégrade", () => {
+    const w = plan.weeks[1];
+    const r = adjustPlan(
+      plan,
+      { weekIndex: 2, sessions: ok(w) },
+      {
+        decision: "maintenir",
+        reasons: ["VFC en baisse"],
+      },
+    );
+    expect(r.decision).toBe("maintenir");
+    expect(r.reasons[0]).toBe("VFC en baisse");
+    expect(r.plan.weeks[2].runMinutes).toBe(w.runMinutes);
+  });
+
+  it("ne remplace pas une décision plus prudente", () => {
+    const w = plan.weeks[1];
+    const fb = ok(w);
+    fb[0] = { done: true, rpe: 5, pain: "douleur" };
+    const r = adjustPlan(
+      plan,
+      { weekIndex: 2, sessions: fb },
+      { decision: "maintenir", reasons: ["x"] },
+    );
+    expect(r.decision).toBe("alleger");
+  });
+});

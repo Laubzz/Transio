@@ -24,6 +24,8 @@ import {
 } from "@/lib/stravaClient";
 import { supabase } from "@/lib/supabase";
 import { useAccount } from "@/lib/sync";
+import { removePeriod, savePeriod } from "@/lib/coaching";
+import { formatShort } from "@/lib/dates";
 import { Button, ButtonLink, Card, Kicker } from "./ui";
 
 const PLACE_LABEL = {
@@ -103,6 +105,7 @@ export function Profile() {
       </Card>
 
       <PaceCard state={state} />
+      <PeriodsCard state={state} />
       <StravaCard state={state} />
       <AccountCard />
 
@@ -392,5 +395,108 @@ function DataNote() {
         ? "Effacer supprime ton plan, tes retours et tes activités importées, dans ton compte et sur cet appareil."
         : "Ton plan et tes retours sont enregistrés uniquement sur cet appareil, dans ce navigateur."}
     </p>
+  );
+}
+
+/** Périodes perso (école, entreprise, vacances…) affichées sur le calendrier. */
+function PeriodsCard({ state }: { state: AppState }) {
+  const [label, setLabel] = useState("");
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const periods = state.periods ?? [];
+  const input =
+    "w-full rounded-xl border border-white/15 bg-night px-3 py-2 text-sm focus:border-target focus:outline-none [color-scheme:dark]";
+  return (
+    <Card>
+      <h2 className="font-semibold">Tes périodes</h2>
+      <p className="mt-1 text-sm text-muted">
+        École, entreprise, vacances, déplacements… Elles s&apos;affichent sur le calendrier pour
+        organiser tes séances. Une période chargée est signalée en orange.
+      </p>
+      {periods.length > 0 && (
+        <ul className="mt-3 divide-y divide-white/5 text-sm">
+          {periods.map((p) => (
+            <li key={p.id} className="flex items-center justify-between gap-3 py-2">
+              <span>
+                <strong className={p.busy ? "text-origin" : ""}>{p.label}</strong>{" "}
+                <span className="text-muted">
+                  du {formatShort(p.start)} au {formatShort(p.end)}
+                </span>
+              </span>
+              <button
+                type="button"
+                className="text-xs text-muted hover:text-warn"
+                onClick={() => saveState(removePeriod(state, p.id))}
+              >
+                Retirer
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form
+        className="mt-4 grid gap-3 sm:grid-cols-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          try {
+            saveState(savePeriod(state, { label, start, end, busy }));
+            setLabel("");
+            setStart("");
+            setEnd("");
+            setBusy(false);
+            setError(null);
+          } catch (err) {
+            setError((err as Error).message);
+          }
+        }}
+      >
+        <label className="block sm:col-span-2">
+          <span className="mb-1 block text-xs text-muted">Nom</span>
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Entreprise"
+            className={input}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-muted">Du</span>
+          <input
+            type="date"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            required
+            className={input}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-muted">Au</span>
+          <input
+            type="date"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+            required
+            className={input}
+          />
+        </label>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={busy}
+            onChange={(e) => setBusy(e.target.checked)}
+            className="accent-origin"
+          />
+          Période chargée
+        </label>
+        <div className="sm:col-span-2 sm:text-right">
+          <Button type="submit" variant="ghost" className="px-4 py-2">
+            Ajouter la période
+          </Button>
+        </div>
+      </form>
+      {error && <p className="mt-2 text-sm text-warn">{error}</p>}
+    </Card>
   );
 }
