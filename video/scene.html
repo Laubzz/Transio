@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Transio motion</title>
+<style>html,body{margin:0;background:#0A0F1E;overflow:hidden}canvas{display:block}</style>
+</head><body><canvas id="c" width="1920" height="1080"></canvas>
+<script>
+// Transio — vidéo de présentation 60 s, rendue image par image (window.render(t)).
+const W = 1920, H = 1080;
+const cv = document.getElementById('c'), x = cv.getContext('2d');
+const C = {
+  bg: '#0A0F1E', card: '#141B31', card2: '#1B2340', ink: '#F3F5FA', mut: '#8C96B3',
+  or: '#FF7A45', te: '#2EE6C5', warn: '#FF4D6D', dark: '#0A0F1E'
+};
+const MONO = 'JetBrains Mono';
+
+// ---------- helpers ----------
+const cl = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const seg = (t, a, b) => cl((t - a) / (b - a));
+const eo = p => 1 - Math.pow(1 - p, 3);
+const eio = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+const eb = p => { const c1 = 1.70158, c3 = c1 + 1; return p <= 0 ? 0 : 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
+const lerp = (a, b, p) => a + (b - a) * p;
+const hx = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const mix = (a, b, f) => { const A = hx(a), B = hx(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * f)).join(',')})`; };
+const fr = (v, d) => v.toFixed(d).replace('.', ',');
+
+function lin(x0, y0, x1, y1, c0 = C.or, c1 = C.te) {
+  const g = x.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, c0); g.addColorStop(1, c1); return g;
+}
+function rr(px, py, w, h, r) { x.beginPath(); x.roundRect(px, py, w, h, r); }
+function font(size, w = 700, fam = 'Inter') { return `${w} ${size}px "${fam}"`; }
+function measure(s, size, w = 700, fam = 'Inter', ls = 0) {
+  x.save(); x.font = font(size, w, fam); x.letterSpacing = ls + 'px'; const m = x.measureText(s).width; x.restore(); return m;
+}
+// Texte simple
+function T(s, px, py, o = {}) {
+  const { size = 60, w = 700, col = C.ink, al = 'center', a = 1, fam = 'Inter', ls = 0 } = o;
+  if (a <= 0) return;
+  x.save(); x.globalAlpha *= a; x.font = font(size, w, fam); x.letterSpacing = ls + 'px';
+  x.textAlign = al; x.textBaseline = 'middle'; x.fillStyle = col; x.fillText(s, px, py); x.restore();
+}
+// Texte révélé par un masque (monte depuis le bas)
+function TR(s, px, py, o, p) {
+  if (p <= 0) return;
+  const size = o.size || 60, e = eo(p);
+  x.save(); x.beginPath(); x.rect(0, py - size * 0.8, W, size * 1.6); x.clip();
+  T(s, px, py + (1 - e) * size * 1.1, { ...o, a: (o.a ?? 1) * cl(p * 2) });
+  x.restore();
+}
+function kicker(s, px, py, p, al = 'center', col = C.te) {
+  if (p <= 0) return;
+  const e = eo(p), w = measure(s, 24, 700, MONO, 6);
+  x.save(); x.globalAlpha *= e;
+  const lx = al === 'center' ? px - w / 2 - 50 : px;
+  x.fillStyle = col; x.fillRect(lx, py - 2, 34 * e, 4);
+  T(s, al === 'center' ? px + 0 : px + 50, py, { size: 24, w: 700, fam: MONO, col, al, ls: 6 });
+  x.restore();
+}
+function pill(s, px, py, o = {}) { // px,py = centre
+  const { size = 28, border = C.te, fill = 'rgba(255,255,255,0.04)', col = C.ink, a = 1, h = 64, w: fw } = o;
+  if (a <= 0) return;
+  const w = fw || measure(s, size, 600) + 64;
+  x.save(); x.globalAlpha *= a;
+  rr(px - w / 2, py - h / 2, w, h, h / 2); x.fillStyle = fill; x.fill();
+  x.lineWidth = 2.5; x.strokeStyle = border; x.stroke();
+  T(s, px, py + 1, { size, w: 600, col });
+  x.restore(); return w;
+}
+function check(cx, cy, s, p, col = C.dark) {
+  if (p <= 0) return;
+  const pts = [[-0.45, 0.02], [-0.12, 0.35], [0.5, -0.32]];
+  const l1 = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]), l2 = Math.hypot(pts[2][0] - pts[1][0], pts[2][1] - pts[1][1]);
+  const L = (l1 + l2) * p;
+  x.save(); x.strokeStyle = col; x.lineWidth = s * 0.16; x.lineCap = 'round'; x.lineJoin = 'round';
+  x.beginPath(); x.moveTo(cx + pts[0][0] * s, cy + pts[0][1] * s);
+  if (L <= l1) { const f = L / l1; x.lineTo(cx + lerp(pts[0][0], pts[1][0], f) * s, cy + lerp(pts[0][1], pts[1][1], f) * s); }
+  else { x.lineTo(cx + pts[1][0] * s, cy + pts[1][1] * s); const f = (L - l1) / l2; x.lineTo(cx + lerp(pts[1][0], pts[2][0], f) * s, cy + lerp(pts[1][1], pts[2][1], f) * s); }
+  x.stroke(); x.restore();
+}
+function bez(p0, p1, p2, p3, t) {
+  const u = 1 - t;
+  return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+          u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]];
+}
+function curve(p0, p1, p2, p3, p, width, stroke) {
+  if (p <= 0) return;
+  const n = 80; x.save(); x.beginPath();
+  for (let i = 0; i <= n * p; i++) { const q = bez(p0, p1, p2, p3, i / n); i ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1]); }
+  const q = bez(p0, p1, p2, p3, p); x.lineTo(q[0], q[1]);
+  x.lineWidth = width; x.lineCap = 'round'; x.strokeStyle = stroke; x.stroke(); x.restore();
+}
+function blob(px, py, r, col) {
+  const g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(px - r, py - r, r * 2, r * 2);
+}
+
+// ---------- logo ----------
+function mark(cx, cy, s, lt, t0 = 0) {
+  const L = [cx - s, cy], R = [cx + s, cy];
+  const P1 = [cx - s * 0.15, cy - s * 1.25], P2 = [cx + s * 0.15, cy + s * 1.25];
+  const pc = eio(seg(lt, t0 + 0.25, t0 + 1.3));
+  curve(L, P1, P2, R, pc, s * 0.2, lin(L[0], 0, R[0], 0));
+  const dl = eb(seg(lt, t0, t0 + 0.45)), dr = eb(seg(lt, t0 + 1.15, t0 + 1.6));
+  x.fillStyle = C.or; x.beginPath(); x.arc(L[0], L[1], s * 0.3 * dl, 0, 7); x.fill();
+  x.fillStyle = C.te; x.beginPath(); x.arc(R[0], R[1], s * 0.3 * dr, 0, 7); x.fill();
+  const rp = seg(lt, t0 + 1.2, t0 + 2.1);
+  if (rp > 0 && rp < 1) { x.save(); x.globalAlpha *= (1 - rp); x.strokeStyle = C.te; x.lineWidth = 4;
+    x.beginPath(); x.arc(R[0], R[1], s * (0.3 + rp * 0.9), 0, 7); x.stroke(); x.restore(); }
+}
+function wordmark(cx, cy, size, p) {
+  if (p <= 0) return;
+  const a = 'Trans', b = 'io', fw = 800, fam = 'Inter Display';
+  const wa = measure(a, size, fw, fam, -4), wb = measure(b, size, fw, fam, -4), sx = cx - (wa + wb) / 2;
+  const e = eo(p);
+  x.save(); x.beginPath(); x.rect(0, cy - size * 0.8, W, size * 1.6); x.clip();
+  const dy = (1 - e) * size; x.globalAlpha *= cl(p * 2);
+  x.font = font(size, fw, fam); x.letterSpacing = '-4px'; x.textBaseline = 'middle'; x.textAlign = 'left';
+  x.fillStyle = C.ink; x.fillText(a, sx, cy + dy);
+  x.fillStyle = lin(sx + wa, 0, sx + wa + wb, 0); x.fillText(b, sx + wa, cy + dy);
+  x.restore();
+}
+
+// ---------- fond ----------
+function bg(t) {
+  x.fillStyle = C.bg; x.fillRect(0, 0, W, H);
+  blob(W * 0.2 + Math.sin(t * 0.3) * 220, H * 0.3 + Math.cos(t * 0.25) * 140, 760, 'rgba(255,122,69,0.11)');
+  blob(W * 0.8 + Math.cos(t * 0.27) * 220, H * 0.7 + Math.sin(t * 0.21) * 140, 860, 'rgba(46,230,197,0.10)');
+  x.fillStyle = 'rgba(255,255,255,0.045)';
+  const off = (t * 12) % 64;
+  for (let i = -64; i < W + 64; i += 64) for (let j = 0; j < H; j += 64) x.fillRect(i + off, j + 20, 2, 2);
+}
+function vignette() {
+  const g = x.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 1.05);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.5)');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+}
+const CUTS = [6, 14, 21, 28.5, 37, 45, 51.5, 56.5];
+function wipes(t) {
+  for (const b of CUTS) {
+    const p = seg(t, b - 0.4, b + 0.4); if (p <= 0 || p >= 1) continue;
+    const e = eio(p);
+    [[620, 0], [90, 260]].forEach(([bw, lag], k) => {
+      const cx = lerp(-900 - lag, W + 900 - lag, e), sk = 260;
+      x.save(); x.globalAlpha = k ? 0.6 : 0.95;
+      x.beginPath(); x.moveTo(cx - bw / 2 + sk, 0); x.lineTo(cx + bw / 2 + sk, 0); x.lineTo(cx + bw / 2 - sk, H); x.lineTo(cx - bw / 2 - sk, H); x.closePath();
+      x.fillStyle = lin(cx - bw / 2 - sk, 0, cx + bw / 2 + sk, 0); x.fill(); x.restore();
+    });
+  }
+}
+function scene(t, s, e, fn) {
+  if (t < s || t >= e) return;
+  const out = eio(seg(t, e - 0.45, e));
+  x.save(); x.globalAlpha = 1 - out;
+  const sc = 1 + 0.05 * out; x.translate(W / 2, H / 2); x.scale(sc, sc); x.translate(-W / 2, -H / 2);
+  fn(t - s); x.restore();
+}
+
+// ---------- scènes ----------
+function s1(lt) {
+  mark(W / 2, 400, 95, lt, 0.1);
+  wordmark(W / 2, 640, 170, seg(lt, 1.3, 2.1));
+  TR("L'app qui t'accompagne quand tu changes de sport.", W / 2, 790, { size: 44, w: 500, col: C.mut }, seg(lt, 2.3, 3.0));
+}
+
+function bar(x0, y, w, h, p, fill, pulse = 0) {
+  rr(x0, y, w, h, h / 2); x.fillStyle = 'rgba(255,255,255,0.07)'; x.fill();
+  if (p <= 0) return;
+  x.save(); x.globalAlpha *= 1 - pulse;
+  rr(x0, y, Math.max(h, w * p), h, h / 2); x.fillStyle = fill; x.fill(); x.restore();
+}
+function s2(lt) {
+  kicker('LE PROBLÈME', W / 2, 190, seg(lt, 0, 0.6));
+  TR('Tu passes du vélo à la course à pied ?', W / 2, 290, { size: 78, w: 800 }, seg(lt, 0.2, 0.9));
+  const x0 = 460, bw = 1000, h = 36;
+  const la = seg(lt, 1.0, 1.5), lb = seg(lt, 1.4, 1.9);
+  T('Cardio', x0, 470, { size: 36, w: 700, al: 'left', a: eo(la) });
+  T('Prêt', x0 + bw, 470, { size: 34, w: 700, al: 'right', col: C.te, a: eo(seg(lt, 2.1, 2.5)) });
+  bar(x0, 505, bw, h, eo(seg(lt, 1.2, 2.2)) * 0.95 * eo(la), lin(x0, 0, x0 + bw, 0));
+  T('Tendons, mollets, articulations', x0, 630, { size: 36, w: 700, al: 'left', a: eo(lb) });
+  T('Pas encore', x0 + bw, 630, { size: 34, w: 700, al: 'right', col: C.warn, a: eo(seg(lt, 3.0, 3.4)) });
+  const pulse = lt > 3 ? 0.25 * (0.5 + 0.5 * Math.sin(lt * 7)) : 0;
+  bar(x0, 665, bw, h, eo(seg(lt, 1.6, 5.0)) * 0.32 * eo(lb), C.warn, pulse);
+  TR('Le cardio suit tout de suite. Le corps, pas encore.', W / 2, 820, { size: 46, w: 600 }, seg(lt, 3.3, 4.0));
+  TR('Ce sont les semaines les plus risquées.', W / 2, 905, { size: 46, w: 800, col: C.warn }, seg(lt, 4.8, 5.5));
+}
+
+function s3(lt) {
+  kicker('NOTRE ANGLE', W / 2, 160, seg(lt, 0, 0.6));
+  TR("Les autres apps partent d'un objectif.", W / 2, 245, { size: 44, w: 500, col: C.mut }, seg(lt, 0.2, 0.8));
+  TR('Transio part de ton ancien sport.', W / 2, 330, { size: 80, w: 800 }, seg(lt, 0.9, 1.6));
+  const L = ['Vélo', 'Foot · Rugby', 'Musculation', 'Natation', 'Reprise après pause'];
+  const R = ['Course à pied', 'Trail', 'Triathlon'];
+  const map = [0, 1, 0, 2, 0];
+  const ly = i => 480 + i * 105, ry = i => 585 + i * 105;
+  const lx = 760, rx = 1160;
+  L.forEach((_, i) => {
+    const p = eio(seg(lt, 2.5 + i * 0.15, 3.5 + i * 0.15));
+    const a = [lx, ly(i)], b = [rx, ry(map[i])];
+    const p1 = [960, a[1]], p2 = [960, b[1]];
+    curve(a, p1, p2, b, p, 4, lin(lx, 0, rx, 0, 'rgba(255,122,69,0.9)', 'rgba(46,230,197,0.9)'));
+    if (p >= 1) {
+      const q = bez(a, p1, p2, b, ((lt * 0.55) + i * 0.23) % 1);
+      x.fillStyle = C.ink; x.beginPath(); x.arc(q[0], q[1], 7, 0, 7); x.fill();
+    }
+  });
+  L.forEach((s, i) => {
+    const p = seg(lt, 1.6 + i * 0.15, 2.2 + i * 0.15), w = measure(s, 30, 600) + 64;
+    pill(s, lx - w / 2 - (1 - eo(p)) * 80, ly(i), { size: 30, border: C.or, a: eo(p), h: 70 });
+  });
+  R.forEach((s, i) => {
+    const p = seg(lt, 3.4 + i * 0.15, 4.0 + i * 0.15), w = measure(s, 32, 600) + 64;
+    pill(s, rx + w / 2 + (1 - eo(p)) * 80, ry(i), { size: 32, border: C.te, fill: 'rgba(46,230,197,0.12)', a: eo(p), h: 74 });
+  });
+}
+
+function s4(lt) {
+  kicker('01 · TON PROFIL DE DÉPART', W / 2, 160, seg(lt, 0, 0.6));
+  TR('On part de qui tu es.', W / 2, 250, { size: 80, w: 800 }, seg(lt, 0.2, 0.9));
+  const D = [['Sport d’origine', 'Vélo · 6 ans'], ['Volume passé', '8 h / semaine'], ['Blessures', 'Genou, 2024'], ['Objectif', 'Premier 10 km']];
+  D.forEach(([k, v], i) => {
+    const cx = W / 2 + (i % 2 ? 350 : -350), cy = 470 + Math.floor(i / 2) * 220;
+    const p = seg(lt, 1.0 + i * 0.25, 1.7 + i * 0.25), e = eo(p);
+    if (p <= 0) return;
+    x.save(); x.globalAlpha *= e; x.translate(0, (1 - e) * 70);
+    const cw = 640, ch = 180, l = cx - cw / 2;
+    rr(l, cy - ch / 2, cw, ch, 28); x.fillStyle = C.card; x.fill();
+    x.strokeStyle = 'rgba(255,255,255,0.08)'; x.lineWidth = 2; x.stroke();
+    const ic = l + 76, s = eb(seg(lt, 1.3 + i * 0.25, 1.75 + i * 0.25));
+    x.fillStyle = lin(ic - 36, cy - 36, ic + 36, cy + 36); x.beginPath(); x.arc(ic, cy, 36 * s, 0, 7); x.fill();
+    check(ic, cy, 46, seg(lt, 1.6 + i * 0.25, 2.0 + i * 0.25));
+    T(k, l + 140, cy - 30, { size: 28, w: 500, col: C.mut, al: 'left' });
+    T(v, l + 140, cy + 22, { size: 50, w: 800, al: 'left' });
+    x.restore();
+  });
+  TR('Un plan de départ qui ne ressemble à aucun autre.', W / 2, 920, { size: 44, w: 700, col: C.te }, seg(lt, 3.6, 4.3));
+}
+
+function s5(lt) {
+  kicker('02 · UN PLAN PAR PHASES', W / 2, 140, seg(lt, 0, 0.6));
+  TR('Progressif. Plafonné. Pensé pour tes tendons.', W / 2, 225, { size: 68, w: 800 }, seg(lt, 0.2, 0.9));
+  const x0 = 360, x1 = 1560, base = 760, mh = 380, n = 12, step = (x1 - x0) / n, bw = step * 0.58;
+  const V = [30, 36, 42, 28, 46, 52, 58, 40, 62, 67, 71, 50];
+  const hY = v => base - v / 80 * mh;
+  // ligne de base
+  x.fillStyle = 'rgba(255,255,255,0.12)'; x.fillRect(x0, base + 2, (x1 - x0) * eo(seg(lt, 0.6, 1.4)), 2);
+  V.forEach((v, i) => {
+    const p = eo(seg(lt, 1.0 + i * 0.12, 1.7 + i * 0.12)); if (p <= 0) return;
+    const bx = x0 + i * step + (step - bw) / 2, top = lerp(base, hY(v), p);
+    const light = i === 3 || i === 7, test = i === 11;
+    rr(bx, top, bw, base - top, [10, 10, 2, 2]);
+    x.fillStyle = light ? 'rgba(255,255,255,0.16)' : test ? C.te : lin(0, base, 0, base - mh, C.or, C.te);
+    x.fill();
+    if (light || test) T(light ? 'allégée' : 'test', bx + bw / 2, top - 26, { size: 22, w: 600, col: light ? C.mut : C.te, a: p });
+  });
+  // plafond
+  const pc = eio(seg(lt, 2.6, 3.6));
+  if (pc > 0) {
+    const ya = hY(38), yb = hY(76);
+    x.save(); x.setLineDash([14, 12]); x.strokeStyle = C.or; x.lineWidth = 3;
+    x.beginPath(); x.moveTo(x0, ya); x.lineTo(lerp(x0, x1, pc), lerp(ya, yb, pc)); x.stroke(); x.restore();
+    T('Plafond de progression d’impact', x1, yb - 34, { size: 26, w: 700, col: C.or, al: 'right', a: eo(seg(lt, 3.3, 3.8)) });
+  }
+  // phases
+  const P = [['Base', 0, 4], ['Rythme', 4, 8], ['Spécifique', 8, 11], ['Test', 11, 12]];
+  P.forEach(([s, a, b], k) => {
+    const p = eo(seg(lt, 3.9 + k * 0.22, 4.5 + k * 0.22)); if (p <= 0) return;
+    const sx = x0 + a * step + 6, w = (b - a) * step - 12;
+    rr(sx, 830, w * p, 14, 7); x.fillStyle = mix(C.or, C.te, (a + b) / 2 / n); x.fill();
+    T(s, sx + w / 2, 880, { size: 30, w: 700, a: p });
+  });
+  TR('Double sport : ton vélo et ta muscu restent dans la charge.', W / 2, 970, { size: 34, w: 500, col: C.mut }, seg(lt, 5.4, 6.0));
+}
+
+function s6(lt) {
+  const lx = 160;
+  kicker('03 · CHAQUE JOUR', lx, 360, seg(lt, 0, 0.6), 'left');
+  TR('Ta séance du jour,', lx, 450, { size: 72, w: 800, al: 'left' }, seg(lt, 0.2, 0.9));
+  TR('ton ressenti, ta muscu.', lx, 535, { size: 72, w: 800, al: 'left', col: C.te }, seg(lt, 0.4, 1.1));
+  TR('Tu notes ta séance en dix secondes.', lx, 650, { size: 34, w: 500, col: C.mut, al: 'left' }, seg(lt, 1.2, 1.8));
+  TR('Le plan s’en souvient.', lx, 700, { size: 34, w: 500, col: C.mut, al: 'left' }, seg(lt, 1.4, 2.0));
+
+  const pe = eo(seg(lt, 0.3, 1.2)); if (pe <= 0) return;
+  const px = 1265, py = 545 + (1 - pe) * 260, pw = 470, ph = 920, y0 = py - ph / 2;
+  x.save(); x.globalAlpha *= pe;
+  x.shadowColor = 'rgba(0,0,0,0.5)'; x.shadowBlur = 60; x.shadowOffsetY = 30;
+  rr(px - pw / 2, y0, pw, ph, 66); x.fillStyle = '#0E1428'; x.fill(); x.shadowColor = 'transparent';
+  x.strokeStyle = 'rgba(255,255,255,0.16)'; x.lineWidth = 3; x.stroke();
+  rr(px - 70, y0 + 22, 140, 34, 17); x.fillStyle = '#05070F'; x.fill();
+  const l = px - 195;
+  T('Aujourd’hui', l, y0 + 118, { size: 46, w: 800, al: 'left' });
+  T('Lundi 9 novembre · semaine 1', l, y0 + 164, { size: 22, w: 500, col: C.mut, al: 'left' });
+  // carte séance
+  const cp = eb(seg(lt, 1.0, 1.6));
+  if (cp > 0) {
+    x.save(); x.translate(px, y0 + 315); x.scale(cp, cp); x.translate(-px, -(y0 + 315));
+    rr(l, y0 + 200, 390, 230, 28); x.fillStyle = lin(l, y0 + 200, l + 390, y0 + 430); x.fill();
+    T('FOOTING', l + 28, y0 + 245, { size: 20, w: 700, fam: MONO, col: C.dark, al: 'left', ls: 3 });
+    T('Endurance fondamentale', l + 28, y0 + 292, { size: 27, w: 800, col: C.dark, al: 'left' });
+    T('35 min · Zone 2', l + 28, y0 + 338, { size: 28, w: 600, col: C.dark, al: 'left' });
+    T('Mollets à surveiller', l + 28, y0 + 390, { size: 22, w: 500, col: 'rgba(10,15,30,0.75)', al: 'left' });
+    x.restore();
+  }
+  // retour de séance
+  const fp = seg(lt, 2.0, 2.5);
+  T('Retour de séance', l, y0 + 490, { size: 28, w: 700, al: 'left', a: eo(fp) });
+  if (fp > 0) {
+    x.save(); x.globalAlpha *= eo(fp);
+    const val = 1 + 5 * eio(seg(lt, 2.4, 3.6)), tw = 390, kx = l + (val - 1) / 9 * tw;
+    rr(l, y0 + 535, tw, 12, 6); x.fillStyle = 'rgba(255,255,255,0.1)'; x.fill();
+    rr(l, y0 + 535, kx - l, 12, 6); x.fillStyle = lin(l, 0, l + tw, 0); x.fill();
+    x.fillStyle = C.ink; x.beginPath(); x.arc(kx, y0 + 541, 18, 0, 7); x.fill();
+    T('Difficulté', l, y0 + 590, { size: 24, w: 500, col: C.mut, al: 'left' });
+    T(Math.round(val) + ' / 10', l + tw, y0 + 590, { size: 26, w: 800, al: 'right' });
+    x.restore();
+  }
+  pill('Sensations : bonnes', l + 105, y0 + 660, { size: 20, h: 50, border: C.te, a: eo(seg(lt, 3.6, 4.0)), w: 210 });
+  pill('Mollets : RAS', l + 307, y0 + 660, { size: 20, h: 50, border: C.or, a: eo(seg(lt, 3.8, 4.2)), w: 165 });
+  const bp = seg(lt, 4.2, 4.6), tap = seg(lt, 5.0, 5.4);
+  if (bp > 0) {
+    x.save(); x.globalAlpha *= eo(bp);
+    const s = 1 - 0.06 * Math.sin(Math.PI * tap);
+    x.translate(px, y0 + 800); x.scale(s, s); x.translate(-px, -(y0 + 800));
+    rr(l, y0 + 765, 390, 72, 36); x.fillStyle = tap > 0.5 ? C.te : lin(l, 0, l + 390, 0); x.fill();
+    T(tap > 0.5 ? 'Séance enregistrée' : 'Enregistrer', px, y0 + 802, { size: 28, w: 800, col: C.dark });
+    x.restore();
+  }
+  x.restore();
+  // cartes flottantes
+  const F = [['Journal muscu', 'Presse · 4 × 10 · 80 kg', 330, 4.6, C.or], ['Rappel du soir', 'Pense à noter ta séance', 770, 5.3, C.te]];
+  F.forEach(([a, b, y, st, col], i) => {
+    const p = eo(seg(lt, st, st + 0.6)); if (p <= 0) return;
+    const bob = Math.sin(lt * 1.6 + i * 2) * 8, fx = 1530, fw = 360, fy = y + bob + (1 - p) * 40;
+    x.save(); x.globalAlpha *= p;
+    rr(fx, fy - 62, fw, 124, 24); x.fillStyle = C.card2; x.fill(); x.strokeStyle = col; x.lineWidth = 2.5; x.stroke();
+    x.fillStyle = col; x.beginPath(); x.arc(fx + 40, fy - 22, 9, 0, 7); x.fill();
+    T(a, fx + 62, fy - 22, { size: 26, w: 800, al: 'left' });
+    T(b, fx + 28, fy + 24, { size: 22, w: 500, col: C.mut, al: 'left' });
+    x.restore();
+  });
+}
+
+function s7(lt) {
+  kicker('04 · AJUSTÉ CHAQUE SEMAINE', W / 2, 140, seg(lt, 0, 0.6));
+  TR('Ton plan évolue avec toi.', W / 2, 225, { size: 78, w: 800 }, seg(lt, 0.2, 0.9));
+  const pp = eo(seg(lt, 0.5, 1.1));
+  x.save(); x.globalAlpha *= pp; x.translate(0, (1 - pp) * 50);
+  rr(160, 320, 980, 520, 30); x.fillStyle = C.card; x.fill();
+  T('Charge d’entraînement', 210, 375, { size: 28, w: 700, al: 'left' });
+  T('prévue', 900, 375, { size: 22, w: 500, col: C.mut, al: 'right' });
+  T('ajustée', 1090, 375, { size: 22, w: 700, col: C.te, al: 'right' });
+  x.fillStyle = C.mut; x.fillRect(800, 373, 30, 3); x.fillStyle = C.te; x.fillRect(965, 372, 30, 5);
+  const P = [40, 46, 52, 58, 62, 66, 70, 74, 64, 80], A = [40, 46, 52, 58, 44, 54, 62, 68, 62, 76];
+  const gx = i => 230 + i * 95, gy = v => 790 - v / 90 * 350;
+  const dp = seg(lt, 0.9, 2.0);
+  x.save(); x.setLineDash([10, 10]); x.strokeStyle = C.mut; x.lineWidth = 3; x.beginPath();
+  P.forEach((v, i) => { const f = cl(dp * 9 - i + 1); if (i === 0) x.moveTo(gx(0), gy(v)); else if (f > 0) x.lineTo(lerp(gx(i - 1), gx(i), f), lerp(gy(P[i - 1]), gy(v), f)); });
+  x.stroke(); x.restore();
+  const m = eio(seg(lt, 2.6, 3.6)), ap = seg(lt, 2.0, 2.5);
+  if (ap > 0) {
+    x.save(); x.globalAlpha *= ap; x.strokeStyle = lin(230, 0, 1085, 0); x.lineWidth = 6; x.lineJoin = 'round'; x.beginPath();
+    P.forEach((v, i) => { const yy = gy(lerp(v, A[i], m)); i ? x.lineTo(gx(i), yy) : x.moveTo(gx(i), yy); }); x.stroke();
+    P.forEach((v, i) => { x.fillStyle = C.ink; x.beginPath(); x.arc(gx(i), gy(lerp(v, A[i], m)), 6, 0, 7); x.fill(); });
+    x.restore();
+  }
+  const tp = eo(seg(lt, 3.4, 3.9));
+  if (tp > 0) {
+    const tx = gx(4), ty = gy(44) + 70;
+    x.save(); x.globalAlpha *= tp;
+    rr(tx - 30, ty - 30, 400, 60, 30); x.fillStyle = 'rgba(46,230,197,0.15)'; x.fill(); x.strokeStyle = C.te; x.lineWidth = 2; x.stroke();
+    T('Fatigue notée → semaine allégée', tx + 170, ty + 1, { size: 22, w: 700, col: C.te });
+    x.restore();
+  }
+  x.restore();
+  const S = [['Charge hebdo', v => Math.round(412 * v) + ' UA', C.or], ['Ratio aigu / chronique', v => fr(1.08 * v, 2), C.te], ['Temps en zone 2', v => Math.round(74 * v) + ' %', C.te]];
+  S.forEach(([k, f, col], i) => {
+    const p = eo(seg(lt, 1.0 + i * 0.3, 1.6 + i * 0.3)); if (p <= 0) return;
+    const ty = 320 + i * 185;
+    x.save(); x.globalAlpha *= p; x.translate((1 - p) * 60, 0);
+    rr(1190, ty, 570, 150, 26); x.fillStyle = C.card; x.fill();
+    x.fillStyle = col; rr(1190, ty, 10, 150, [26, 0, 0, 26]); x.fill();
+    T(k, 1235, ty + 45, { size: 26, w: 500, col: C.mut, al: 'left' });
+    T(f(eo(seg(lt, 1.2 + i * 0.3, 2.6 + i * 0.3))), 1235, ty + 102, { size: 54, w: 800, al: 'left' });
+    x.restore();
+  });
+  const B = ['Import Strava', 'Données de ta montre', 'Export Garmin .FIT', 'Calendrier .ics'];
+  const ws = B.map(s => measure(s, 26, 600) + 64), tot = ws.reduce((a, b) => a + b, 0) + 24 * (B.length - 1);
+  let cx = W / 2 - tot / 2;
+  B.forEach((s, i) => { pill(s, cx + ws[i] / 2, 930, { size: 26, h: 60, border: 'rgba(255,255,255,0.25)', a: eo(seg(lt, 4.0 + i * 0.15, 4.5 + i * 0.15)) }); cx += ws[i] + 24; });
+}
+
+function s8(lt) {
+  TR('Pourquoi Transio ?', W / 2, 220, { size: 84, w: 800 }, seg(lt, 0.05, 0.7));
+  const D = [[['Profil', 'de départ'], ['Ton passé façonne', 'ton plan']], [['Garde-fous', 'de transition'], ['Impact plafonné,', 'semaines allégées']],
+             [['Double', 'sport'], ['Vélo et muscu', 'comptent aussi']], [['Français', 'd’abord'], ['Un ton de coach,', 'proche de toi']]];
+  D.forEach(([t, s], i) => {
+    const p = eo(seg(lt, 0.5 + i * 0.28, 1.2 + i * 0.28)); if (p <= 0) return;
+    const cx = 300 + i * 440;
+    x.save(); x.globalAlpha *= p; x.translate(0, (1 - p) * 80);
+    rr(cx - 195, 370, 390, 470, 32); x.fillStyle = C.card; x.fill(); x.strokeStyle = 'rgba(255,255,255,0.08)'; x.lineWidth = 2; x.stroke();
+    const sc = eb(seg(lt, 0.8 + i * 0.28, 1.25 + i * 0.28));
+    x.fillStyle = lin(cx - 46, 420, cx + 46, 512); x.beginPath(); x.arc(cx, 466, 46 * sc, 0, 7); x.fill();
+    T(String(i + 1), cx, 468, { size: 44 * sc + 0.01, w: 800, col: C.dark });
+    T(t[0], cx, 590, { size: 42, w: 800 }); T(t[1], cx, 640, { size: 42, w: 800 });
+    T(s[0], cx, 730, { size: 26, w: 500, col: C.mut }); T(s[1], cx, 766, { size: 26, w: 500, col: C.mut });
+    x.restore();
+  });
+}
+
+function s9(lt) {
+  mark(W / 2, 370, 85, lt, 0);
+  wordmark(W / 2, 590, 180, seg(lt, 0.7, 1.4));
+  TR('Change de sport. Garde tes acquis.', W / 2, 745, { size: 56, w: 700 }, seg(lt, 1.3, 1.9));
+  const p = eo(seg(lt, 1.9, 2.4));
+  T('BIENTÔT DISPONIBLE', W / 2, 850, { size: 26, w: 700, fam: MONO, col: C.te, ls: 8, a: p });
+}
+
+window.render = function (t) {
+  x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.setLineDash([]);
+  bg(t);
+  scene(t, 0, 6, s1); scene(t, 6, 14, s2); scene(t, 14, 21, s3); scene(t, 21, 28.5, s4);
+  scene(t, 28.5, 37, s5); scene(t, 37, 45, s6); scene(t, 45, 51.5, s7); scene(t, 51.5, 56.5, s8);
+  scene(t, 56.5, 60.01, s9);
+  wipes(t);
+  vignette();
+  // barre de progression
+  x.fillStyle = lin(0, 0, W, 0); x.globalAlpha = 0.7; x.fillRect(0, H - 5, W * t / 60, 5); x.globalAlpha = 1;
+  if (t < 0.5) { x.fillStyle = `rgba(0,0,0,${1 - seg(t, 0, 0.5)})`; x.fillRect(0, 0, W, H); }
+  if (t > 59.3) { x.fillStyle = `rgba(0,0,0,${seg(t, 59.3, 60)})`; x.fillRect(0, 0, W, H); }
+};
+window.ready = Promise.all(['800 60px "Inter"', '500 60px "Inter"', '600 60px "Inter"', '700 60px "Inter"', '800 60px "Inter Display"', '700 30px "JetBrains Mono"'].map(f => document.fonts.load(f)));
+if (!/render/.test(location.hash)) { // aperçu en direct dans le navigateur
+  const t0 = performance.now();
+  (function loop() { render(((performance.now() - t0) / 1000) % 60); requestAnimationFrame(loop); })();
+}
+</script></body></html>
