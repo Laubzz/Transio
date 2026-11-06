@@ -117,13 +117,20 @@ export function SessionPanel({
             <p className="text-sm">
               {fb.done ? (
                 <>
-                  <strong>Faite</strong> · {fb.rpe}/10 {RPE_LABEL[fb.rpe ?? 0].toLowerCase()}
+                  <strong>Faite</strong> · {fb.durationMin ?? session.durationMin} min · {fb.rpe}/10{" "}
+                  {RPE_LABEL[fb.rpe ?? 0].toLowerCase()}
                   {fb.pain === "gene" && <span className="text-origin"> · gêne</span>}
                   {fb.pain === "douleur" && <span className="text-warn"> · douleur</span>}
                 </>
               ) : (
                 <strong>Pas faite</strong>
               )}
+              {fb.strength?.map((r) => (
+                <span key={r.exercise} className="block text-muted">
+                  {r.exercise} · {r.sets} × {r.reps}
+                  {r.loadKg > 0 && ` · ${r.loadKg} kg`}
+                </span>
+              ))}
               {fb.comment && <span className="block text-muted">« {fb.comment} »</span>}
             </p>
             {!locked && (

@@ -9,9 +9,37 @@ import {
 } from "@/engine";
 import type { ISODate } from "./dates";
 
+/** Une ligne du journal muscu. */
+export interface StrengthSet {
+  exercise: string;
+  sets: number;
+  reps: number;
+  /** Charge en kg (0 pour le poids du corps). */
+  loadKg: number;
+}
+
 /** Retour enregistré sur une séance. */
 export interface StoredFeedback extends SessionFeedback {
+  /** Durée réellement faite, en minutes (sinon la durée prévue). */
+  durationMin?: number;
   comment?: string;
+  /** Exercices faits, pour une séance de renforcement. */
+  strength?: StrengthSet[];
+}
+
+const positive = (n: unknown) =>
+  typeof n === "number" && Number.isFinite(n) && n > 0 ? n : undefined;
+
+function cleanStrength(sets: StrengthSet[] | undefined): StrengthSet[] | undefined {
+  const rows = (sets ?? [])
+    .map((r) => ({
+      exercise: r.exercise.trim(),
+      sets: Math.round(positive(r.sets) ?? 0),
+      reps: Math.round(positive(r.reps) ?? 0),
+      loadKg: Math.max(0, Number(r.loadKg) || 0),
+    }))
+    .filter((r) => r.exercise && r.sets > 0 && r.reps > 0);
+  return rows.length ? rows : undefined;
 }
 
 /** Bilan d'une semaine terminée, tel qu'appliqué au plan. */
@@ -56,7 +84,9 @@ export function recordFeedback(
         done: true,
         rpe: fb.rpe,
         pain: fb.pain ?? "aucune",
+        durationMin: positive(fb.durationMin) && Math.round(fb.durationMin!),
         comment: fb.comment?.trim() || undefined,
+        strength: cleanStrength(fb.strength),
       }
     : { done: false, comment: fb.comment?.trim() || undefined };
   return { ...state, feedback: { ...state.feedback, [feedbackKey(weekIndex, day)]: clean } };

@@ -5,7 +5,7 @@ import { ORIGIN_LABEL } from "@/engine";
 import { formatShort, position, sessionDate } from "@/lib/dates";
 import { DAYS_SHORT, PHASE_LABEL, sessionLabel } from "@/lib/labels";
 import { isReviewed, pendingReview } from "@/lib/state";
-import { saveState, useAppState, useToday } from "@/lib/store";
+import { useAppState, useToday } from "@/lib/store";
 import { SessionPanel, StatusBadge, sessionStatus } from "./SessionPanel";
 import { ReviewPrompt, ReviewResult } from "./WeekReview";
 import { Button, Kicker } from "./ui";
@@ -17,7 +17,7 @@ const PHASE_COLOR = {
   test: "bg-target",
 } as const;
 
-/** Écran « Planning » : frise des semaines, semaine jour par jour, retours et bilan. */
+/** Écran « Calendrier » : frise des semaines, semaine jour par jour, retours et bilan. */
 export function Planning() {
   const state = useAppState();
   const today = useToday();
@@ -50,7 +50,7 @@ export function Planning() {
   return (
     <div className="space-y-6">
       <header>
-        <Kicker>Planning</Kicker>
+        <Kicker>Calendrier</Kicker>
         <h1 className="mt-2 text-3xl font-extrabold">Ton plan</h1>
       </header>
 
@@ -203,21 +203,6 @@ export function Planning() {
           Le bilan de cette semaine se fera après celui des semaines précédentes.
         </p>
       )}
-
-      <footer className="border-t border-white/10 pt-6">
-        <Button
-          variant="danger"
-          onClick={() => {
-            if (
-              window.confirm("Effacer ton plan et tes retours pour recommencer le questionnaire ?")
-            ) {
-              saveState(null);
-            }
-          }}
-        >
-          Recommencer le questionnaire
-        </Button>
-      </footer>
     </div>
   );
 }

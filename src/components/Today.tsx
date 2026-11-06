@@ -42,7 +42,7 @@ export function Today() {
           today={today}
           originLabel={origin}
         />
-        <ButtonLink href="/planning" variant="ghost">
+        <ButtonLink href="/calendrier" variant="ghost">
           Voir tout le plan
         </ButtonLink>
       </div>
@@ -65,7 +65,7 @@ export function Today() {
         </header>
         {pending !== null && <ReviewPrompt state={state} weekIndex={pending} />}
         <div className="flex flex-wrap gap-2">
-          <ButtonLink href="/planning" variant="ghost">
+          <ButtonLink href="/calendrier" variant="ghost">
             Revoir le plan
           </ButtonLink>
           <ButtonLink href="/questionnaire">Nouveau plan</ButtonLink>
@@ -122,7 +122,7 @@ export function Today() {
 
       {toRate > 0 && (
         <Link
-          href="/planning"
+          href="/calendrier"
           className="block rounded-2xl border border-origin/40 p-4 text-sm hover:bg-origin/5"
         >
           <strong className="text-origin">

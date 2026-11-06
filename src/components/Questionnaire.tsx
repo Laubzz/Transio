@@ -13,7 +13,7 @@ import {
 import { daysBetween, mondayOf, nextMonday } from "@/lib/dates";
 import { GOAL_HINT, INJURY_LABEL, ORIGIN_HINT } from "@/lib/labels";
 import { createState } from "@/lib/state";
-import { saveState, useToday } from "@/lib/store";
+import { saveState, useAppState, useToday } from "@/lib/store";
 import { Button, Kicker, OptionCard, Segmented } from "./ui";
 
 const STEPS = ["Ton sport", "Ton corps", "Ton objectif", "Ta semaine"] as const;
@@ -29,6 +29,7 @@ const inputClass =
 export function Questionnaire() {
   const router = useRouter();
   const today = useToday();
+  const existing = useAppState();
   const [step, setStep] = useState(0);
   const [origin, setOrigin] = useState<OriginSport>("velo");
   const [years, setYears] = useState(3);
@@ -75,6 +76,12 @@ export function Questionnaire() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8">
+      {existing && step === 0 && (
+        <p className="mb-6 rounded-2xl border border-origin/40 bg-origin/10 p-4 text-sm">
+          Tu as déjà un plan. En générant un nouveau plan, l&apos;actuel et tes retours seront
+          remplacés.
+        </p>
+      )}
       <Kicker>
         Étape {step + 1} sur {STEPS.length} · {STEPS[step]}
       </Kicker>
