@@ -11,6 +11,7 @@ import { useAppState, useToday } from "@/lib/store";
 import { NextCyclePrompt } from "./NextCycle";
 import { AdviceCard, KeyTiles, LastSessionCard } from "./Coaching";
 import { AddFreeSession, FreeSessionCard } from "./FreeSession";
+import { Overview } from "./Overview";
 import { SessionPanel } from "./SessionPanel";
 import { ReviewPrompt, ReviewResult } from "./WeekReview";
 import { ButtonLink, Card, Kicker } from "./ui";
@@ -95,7 +96,8 @@ export function Today() {
           Semaine {week.index} · {PHASE_LABEL[week.phase]}
           {week.deload && " · allégée"}
         </Kicker>
-        <h1 className="mt-2 text-3xl font-extrabold">Aujourd&apos;hui</h1>
+        <h1 className="mt-2 text-3xl font-extrabold">Bonjour,</h1>
+        <p className="mt-1 text-muted">Voici l&apos;état de ton entraînement aujourd&apos;hui.</p>
         <p className="mt-1 text-muted first-letter:uppercase">
           {formatLong(today)}
           {periodOn(state, today) && (
@@ -106,10 +108,12 @@ export function Today() {
         </p>
       </header>
 
+      <Overview state={state} today={today} />
+
       {goal && (
         <Link
           href="/calendrier"
-          className="block rounded-2xl border border-[#ffd166]/40 bg-[#ffd166]/10 p-4 text-sm hover:bg-[#ffd166]/15"
+          className="block rounded-2xl border border-[#a16207]/40 bg-[#a16207]/10 p-4 text-sm hover:bg-[#a16207]/15"
         >
           <strong>
             ★ {goal.label}{" "}

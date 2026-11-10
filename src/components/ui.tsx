@@ -5,7 +5,7 @@ const BASE =
   "inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold transition " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-target disabled:opacity-40";
 const VARIANT = {
-  primary: "bg-gradient-to-r from-origin to-target text-night hover:brightness-110",
+  primary: "bg-ink text-night hover:bg-ink/85",
   ghost: "border border-white/15 text-ink hover:bg-white/5",
   danger: "border border-warn/40 text-warn hover:bg-warn/10",
 };

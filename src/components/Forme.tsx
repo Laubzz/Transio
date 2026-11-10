@@ -28,7 +28,7 @@ const FIELDS: {
     max: 90,
     step: 1,
     better: "up",
-    color: "#2ee6c5",
+    color: "#7cb518",
   },
   {
     key: "hrv",

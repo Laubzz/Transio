@@ -100,7 +100,7 @@ export function BarChart({
                 {d.value > 0 && (
                   <path
                     d={barPath(x + 2, y(d.value), barW - 4, y(0))}
-                    fill="#2ee6c5"
+                    fill="#7cb518"
                     opacity={hover === null || hover === i ? 1 : 0.45}
                   />
                 )}
@@ -109,7 +109,7 @@ export function BarChart({
                   y={H - 10}
                   textAnchor="middle"
                   fontSize={11}
-                  fill={hover === i ? "#f3f5fa" : "#8c96b3"}
+                  fill={hover === i ? "#1a1c18" : "#8c96b3"}
                 >
                   {d.label}
                 </text>

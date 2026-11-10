@@ -79,7 +79,7 @@ export function FreeSessionForm({
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className={`${INPUT} [color-scheme:dark]`}
+            className={`${INPUT} [color-scheme:light]`}
           />
         </label>
         <label className="block">

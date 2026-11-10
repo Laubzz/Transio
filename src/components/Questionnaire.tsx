@@ -278,7 +278,7 @@ export function Questionnaire() {
               type="date"
               value={startDate}
               onChange={(e) => setStart(e.target.value)}
-              className={`${inputClass} max-w-52 [color-scheme:dark]`}
+              className={`${inputClass} max-w-52 [color-scheme:light]`}
             />
             {!startOk && (
               <span className="mt-1 block text-sm text-warn">

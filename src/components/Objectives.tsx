@@ -58,7 +58,7 @@ export function ObjectivesCard({ state, today }: { state: AppState; today: ISODa
                     <span
                       className={`mr-2 rounded-full border px-2 py-0.5 text-xs ${
                         o.priority === "principal"
-                          ? "border-[#ffd166]/60 text-[#ffd166]"
+                          ? "border-[#a16207]/60 text-[#a16207]"
                           : "border-white/20 text-muted"
                       }`}
                     >
@@ -144,7 +144,7 @@ export function ObjectivesCard({ state, today }: { state: AppState; today: ISODa
                 min={today}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className={`${INPUT} [color-scheme:dark]`}
+                className={`${INPUT} [color-scheme:light]`}
               />
             </label>
           </div>

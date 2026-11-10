@@ -198,7 +198,7 @@ export function MonthOverview({
                   {slot?.sessions.map((s) => (
                     <span
                       key={s.kind + s.day}
-                      className="block truncate rounded px-1 py-0.5 text-[10px] leading-tight font-semibold text-night sm:text-xs"
+                      className="block truncate rounded px-1 py-0.5 text-[10px] leading-tight font-semibold text-ink sm:text-xs"
                       style={{ background: KIND_COLOR[s.kind] }}
                     >
                       <span className="hidden sm:inline">{sessionTitle(s, origin)} · </span>
@@ -211,7 +211,7 @@ export function MonthOverview({
                     .map((g) => (
                       <span
                         key={g.id}
-                        className="block truncate text-[10px] text-[#ffd166] sm:text-xs"
+                        className="block truncate text-[10px] text-[#a16207] sm:text-xs"
                       >
                         ★ {g.label}
                       </span>
