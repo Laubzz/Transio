@@ -20,6 +20,8 @@ const DOT: Record<RunBlock["intensity"], string> = {
   objectif: "bg-warn",
 };
 
+const km = (m: number) => `${String(m / 1000).replace(".", ",")} km`;
+
 function duration(sec: number) {
   if (sec % 60 === 0) return `${sec / 60} min`;
   return sec < 60 ? `${sec} s` : `${formatDuration(sec)}`;
@@ -52,12 +54,18 @@ export function WorkoutDetail({
                   {b.repeat > 1 ? (
                     <span className="font-normal">
                       {" "}
-                      : {b.repeat} × {duration(b.workSec)}
+                      : {b.repeat} × {b.distanceM ? km(b.distanceM) : duration(b.workSec)}
                       {b.recoverySec &&
                         ` (récup ${duration(b.recoverySec)} ${b.recoveryIntensity === "marche" ? "en marchant" : "en trottinant"})`}
                     </span>
                   ) : (
-                    b.workSec > 0 && <span className="font-normal"> : {duration(b.workSec)}</span>
+                    b.workSec > 0 && (
+                      <span className="font-normal">
+                        {" "}
+                        : {b.distanceM ? km(b.distanceM) : duration(b.workSec)}
+                        {b.recoverySec && ` (puis récup ${duration(b.recoverySec)} en trottinant)`}
+                      </span>
+                    )
                   )}
                 </p>
                 <p className="text-muted">

@@ -8,8 +8,11 @@ import type { Goal, InjuryZone, OriginSport, SessionKind } from "./types";
 export const RULES = {
   /** Hausse maximale du volume de course d'une semaine à l'autre. */
   maxIncreaseRatio: 0.1,
-  /** Bornes de cette hausse, en minutes (à bas volume, 10 % est trop peu pour progresser). */
-  minIncreaseMin: 5,
+  /**
+   * Bornes de cette hausse, en minutes. À bas volume, 10 % est trop peu : sans au moins 10 min
+   * de plus par semaine, la sortie longue n'atteint jamais la durée de la course visée.
+   */
+  minIncreaseMin: 10,
   maxIncreaseMin: 15,
   /** Une semaine allégée toutes les N semaines. */
   deloadEvery: 4,
@@ -91,6 +94,26 @@ export const LONG_RUN_SHARE: Record<2 | 3 | 4, number> = {
   3: 0.4,
   4: 0.35,
 };
+
+/**
+ * Durée que la sortie longue doit atteindre avant le test, en minutes : au moins le temps
+ * d'effort de la course visée (1 h 15 pour un 10 km, comme dans les plans classiques).
+ */
+export const LONG_RUN_TARGET: Record<Goal, number> = {
+  "5k": 50,
+  "10k": 75,
+  semi: 110,
+  trail: 90,
+};
+
+/** Distance du test de fin de plan, en km. */
+export const GOAL_DISTANCE_KM: Record<Goal, number> = { "5k": 5, "10k": 10, semi: 21.1, trail: 9 };
+
+/** Durée gardée pour chaque autre séance de course quand la sortie longue s'allonge. */
+export const MIN_OTHER_RUN: Record<2 | 3 | 4, number> = { 2: 45, 3: 30, 4: 30 };
+
+/** À partir de ce volume de course déjà pratiqué chaque semaine, pas de course-marche. */
+export const RUNNER_MINUTES = 60;
 
 export const ORIGIN_LABEL: Record<OriginSport, string> = {
   velo: "Vélo",

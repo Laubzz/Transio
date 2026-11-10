@@ -50,6 +50,10 @@ export function Profile() {
     ],
     ["Volume habituel", `${p.weeklyHoursPast} h par semaine`],
     [
+      "Course au départ du plan",
+      p.currentRunMinutes ? `${p.currentRunMinutes} min par semaine` : "Ne courait pas encore",
+    ],
+    [
       "Blessures passées",
       p.injuries.length
         ? p.injuries.map((i) => `${INJURY_LABEL[i.zone]} (${i.year})`).join(", ")

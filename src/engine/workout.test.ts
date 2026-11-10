@@ -5,7 +5,8 @@ import { generatePlan } from "./plan";
 import type { Profile, SessionKind } from "./types";
 import { buildWorkout, strengthPlaceFor, target } from "./workout";
 
-const withRef: Profile = { ...VELO_TO_10K, reference5kSec: 25 * 60 }; // 5 km en 25 min : 5:00 /km
+// 5 km en 25 min : 5:00 /km. Court déjà : assez de volume pour avoir du fractionné.
+const withRef: Profile = { ...VELO_TO_10K, reference5kSec: 25 * 60, currentRunMinutes: 150 };
 const plan = generatePlan(withRef);
 const find = (kind: SessionKind) => {
   for (const w of plan.weeks) {
@@ -63,12 +64,20 @@ describe("détail des séances", () => {
   });
 
   it("garde une durée proche de celle prévue", () => {
-    for (const kind of ["endurance", "sortie-longue", "tempo", "course-marche"] as const) {
+    for (const kind of ["endurance", "sortie-longue", "tempo"] as const) {
       const { w, s } = find(kind);
       expect(
         Math.abs(total(buildWorkout(withRef, w, s).blocks) - s.durationMin),
       ).toBeLessThanOrEqual(5);
     }
+    // La course-marche ne concerne que ceux qui ne courent pas encore.
+    const novice = generatePlan({ ...withRef, currentRunMinutes: 0 });
+    const walk = novice.weeks[0].sessions.find((x) => x.kind === "course-marche")!;
+    expect(
+      Math.abs(
+        total(buildWorkout(novice.profile, novice.weeks[0], walk).blocks) - walk.durationMin,
+      ),
+    ).toBeLessThanOrEqual(5);
   });
 
   it("propose des exercices à la maison ou en salle selon le choix", () => {

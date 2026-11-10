@@ -14,7 +14,8 @@ import {
 } from "@/engine";
 import { daysBetween, mondayOf, nextMonday } from "@/lib/dates";
 import { GOAL_HINT, INJURY_LABEL, ORIGIN_HINT } from "@/lib/labels";
-import { createState } from "@/lib/state";
+import { applyObjectives } from "@/lib/objectives";
+import { recentRunMinutes, restartState } from "@/lib/state";
 import { saveState, useAppState, useToday } from "@/lib/store";
 import { useAccount } from "@/lib/sync";
 import { StrengthQuestions, maxStrength, type StrengthChoice } from "./StrengthQuestions";
@@ -38,6 +39,7 @@ export function Questionnaire() {
   const [origin, setOrigin] = useState<OriginSport>("velo");
   const [years, setYears] = useState(3);
   const [hours, setHours] = useState(6);
+  const [running, setRunning] = useState<number | null>(null);
   const [injuries, setInjuries] = useState<Partial<Record<InjuryZone, number>>>({});
   const [goal, setGoal] = useState<Goal>("10k");
   const [weeks, setWeeks] = useState(12);
@@ -77,6 +79,9 @@ export function Questionnaire() {
   const startDate = start ?? nextMonday(today);
   const startOk = /^\d{4}-\d{2}-\d{2}$/.test(startDate) && daysBetween(today, startDate) >= -6;
 
+  // Volume de course actuel : saisi, sinon lu dans les sorties Strava des 4 dernières semaines.
+  const fromStrava = recentRunMinutes(existing?.activities ?? [], today);
+  const runNow = running ?? fromStrava;
   const keepsOrigin = origin !== "reprise" && keepOrigin;
   const strengthMax = maxStrength(runDays, keepsOrigin);
   const strengthOk = strength.haut + strength.bas <= strengthMax;
@@ -107,8 +112,10 @@ export function Questionnaire() {
       mobility: strength.mobility,
       strengthPlace: strength.place,
       reference5kSec: ref5kSec ?? undefined,
+      currentRunMinutes: runNow || undefined,
     };
-    saveState(createState(profile, mondayOf(startDate)));
+    // Les activités Strava, les objectifs et les réglages sont gardés ; seul le plan repart.
+    saveState(applyObjectives(restartState(existing ?? null, profile, mondayOf(startDate)), today));
     router.push("/aujourdhui");
   };
 
@@ -117,7 +124,7 @@ export function Questionnaire() {
       {existing && step === 0 && (
         <p className="mb-6 rounded-2xl border border-origin/40 bg-origin/10 p-4 text-sm">
           Tu as déjà un plan. En générant un nouveau plan, l&apos;actuel et tes retours seront
-          remplacés.
+          remplacés. Tes activités Strava, tes objectifs et tes réglages sont gardés.
         </p>
       )}
       <Kicker>
@@ -175,6 +182,28 @@ export function Questionnaire() {
               />
             </label>
           </div>
+          <label className="block">
+            <span className="mb-2 block text-sm font-semibold">
+              Tu cours déjà ? Minutes de course par semaine en ce moment
+            </span>
+            <input
+              type="number"
+              min={0}
+              max={600}
+              step={5}
+              value={runNow}
+              onChange={(e) => setRunning(Math.min(600, Math.max(0, Number(e.target.value) || 0)))}
+              className={`${inputClass} max-w-40`}
+            />
+            <span className="mt-1 block text-sm text-muted">
+              {runNow >= 60
+                ? `Le plan démarre à ${Math.floor((runNow * 0.9) / 5) * 5} min de course par semaine environ, sans course-marche.`
+                : "Laisse 0 si tu ne cours pas encore : le plan commence en course-marche."}
+              {running === null &&
+                fromStrava > 0 &&
+                " Valeur lue dans tes sorties Strava des 4 dernières semaines."}
+            </span>
+          </label>
         </section>
       )}
 

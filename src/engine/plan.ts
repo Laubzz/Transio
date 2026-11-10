@@ -4,7 +4,11 @@ import {
   LOW_PAST_VOLUME_HOURS,
   LOWER_LIMB,
   ORIGIN_LABEL,
+  GOAL_DISTANCE_KM,
   LONG_RUN_SHARE,
+  LONG_RUN_TARGET,
+  MIN_OTHER_RUN,
+  RUNNER_MINUTES,
   PEAK_RUN_MINUTES,
   RULES,
   RUN_DAYS,
@@ -13,6 +17,7 @@ import {
   START_RUN_MINUTES,
   TARGET_RPE,
 } from "./rules";
+import { goalPaceNeed } from "./goalPace";
 import type {
   Phase,
   Plan,
@@ -108,7 +113,9 @@ export function startMinutes(p: Profile): number {
   let m = START_RUN_MINUTES[p.originSport];
   if (p.injuries.some((i) => LOWER_LIMB.includes(i.zone))) m *= INJURY_START_FACTOR;
   if (p.weeklyHoursPast < LOW_PAST_VOLUME_HOURS) m *= LOW_PAST_VOLUME_FACTOR;
-  return Math.max(15 * p.runDaysPerWeek, floor5(m));
+  // Quelqu'un qui court déjà repart de 90 % de son volume actuel, sans dépasser le pic visé.
+  const current = Math.min(PEAK_RUN_MINUTES[p.goal], (p.currentRunMinutes ?? 0) * 0.9);
+  return Math.max(15 * p.runDaysPerWeek, floor5(Math.max(m, current)));
 }
 
 /** Phase d'une semaine : base ≈ 40 %, rythme ≈ 30 %, spécifique le reste, test la dernière. */
@@ -173,11 +180,16 @@ export function scheduleVolumes(
 }
 
 /**
- * Répartit les minutes de course : la sortie longue d'abord (arrondie aux 5 min),
- * puis le reste à parts égales, le surplus allant à la première séance.
+ * Répartit les minutes de course. La sortie longue d'abord : sa part habituelle du volume, ou
+ * davantage dès que les autres séances gardent leur durée minimale, jusqu'à la durée visée pour
+ * l'objectif (une sortie d'au moins le temps de course avant le test). Le reste est partagé à
+ * parts égales, le surplus allant à la première séance.
  */
-function splitRun(total: number, n: 2 | 3 | 4): number[] {
-  const long = Math.round((total * LONG_RUN_SHARE[n]) / 5) * 5;
+export function splitRun(total: number, n: 2 | 3 | 4, goal: Profile["goal"]): number[] {
+  const share = round5(total * LONG_RUN_SHARE[n]);
+  const stretched = Math.min(LONG_RUN_TARGET[goal], floor5(total - MIN_OTHER_RUN[n] * (n - 1)));
+  // Au-delà de 120 % de la durée visée, les minutes en plus vont aux autres séances.
+  const long = Math.min(Math.max(share, stretched), round5(LONG_RUN_TARGET[goal] * 1.2));
   const rest = total - long;
   const each = floor5(rest / (n - 1));
   const parts = Array(n - 1).fill(each);
@@ -185,7 +197,60 @@ function splitRun(total: number, n: 2 | 3 | 4): number[] {
   return [...parts, long];
 }
 
-function runKinds(profile: Profile, week: number, phase: Phase, deload: boolean): SessionKind[] {
+/**
+ * Donne à la séance à l'allure objectif la durée dont elle a besoin (échauffement, kilomètres,
+ * récupérations, retour au calme), en la prenant sur les footings, qui gardent au moins 20 min
+ * (30 min pour le fractionné). La sortie longue ne change pas.
+ */
+function fitQuality(
+  profile: Profile,
+  week: number,
+  kinds: SessionKind[],
+  durations: number[],
+): number[] {
+  const t = kinds.indexOf("tempo");
+  const need = t < 0 ? null : goalPaceNeed(profile, qualityRank(profile, week));
+  if (need === null || need <= durations[t]) return durations;
+  const others = kinds.map((_, i) => i).filter((i) => i !== t && i !== kinds.length - 1);
+  const floor = (i: number) => (kinds[i] === "fractionne" ? 30 : 20);
+  const rest = durations.slice(0, -1).reduce((a, b) => a + b, 0);
+  const tempo = Math.min(need, rest - others.reduce((a, i) => a + floor(i), 0));
+  if (tempo <= durations[t]) return durations;
+  const out = [...durations];
+  out[t] = tempo;
+  const each = others.length ? floor5((rest - tempo) / others.length) : 0;
+  others.forEach((i) => (out[i] = each));
+  if (others.length) out[others[0]] += rest - tempo - each * others.length;
+  return out;
+}
+
+/** La personne court déjà régulièrement : pas besoin de course-marche. */
+const alreadyRuns = (p: Profile) =>
+  (p.cycle ?? 1) > 1 || (p.currentRunMinutes ?? 0) >= RUNNER_MINUTES;
+
+/** Volume à partir duquel 3 courses par semaine supportent deux séances de qualité. */
+const TWO_QUALITY_MINUTES = 150;
+
+/**
+ * Rang de la semaine parmi les semaines de qualité (rythme et spécifique, hors semaines
+ * allégées) : 0 pour la première. Il fixe l'étape de la progression à l'allure objectif.
+ */
+export function qualityRank(profile: Profile, week: number): number {
+  let rank = 0;
+  for (let w = 1; w < week; w++) {
+    const ph = phaseOf(w, profile.weeks);
+    if ((ph === "rythme" || ph === "specifique") && w % RULES.deloadEvery !== 0) rank++;
+  }
+  return rank;
+}
+
+function runKinds(
+  profile: Profile,
+  week: number,
+  phase: Phase,
+  deload: boolean,
+  minutes: number,
+): SessionKind[] {
   const n = profile.runDaysPerWeek;
   const kinds: SessionKind[] = Array(n - 1).fill("endurance");
   kinds.push("sortie-longue");
@@ -194,13 +259,19 @@ function runKinds(profile: Profile, week: number, phase: Phase, deload: boolean)
     return kinds;
   }
   if (deload) return kinds;
-  if (RUN_WALK_START[profile.originSport] && (profile.cycle ?? 1) === 1 && week <= RUN_WALK_WEEKS) {
+  if (RUN_WALK_START[profile.originSport] && !alreadyRuns(profile) && week <= RUN_WALK_WEEKS) {
     return kinds.map((k) => (k === "endurance" ? "course-marche" : k));
   }
   if (phase === "rythme") kinds[n - 2] = "tempo";
   if (phase === "specifique") {
-    kinds[n - 2] = "fractionne";
-    if (n >= 3) kinds[0] = "tempo";
+    // Une séance à l'allure objectif chaque semaine ; le fractionné s'ajoute quand le volume
+    // le permet (4 courses, ou 3 courses avec assez de minutes).
+    if (n >= 4 || (n === 3 && minutes >= TWO_QUALITY_MINUTES)) {
+      kinds[n - 2] = "fractionne";
+      kinds[0] = "tempo";
+    } else {
+      kinds[n - 2] = "tempo";
+    }
   }
   return kinds;
 }
@@ -210,7 +281,8 @@ export const SESSION_DESCRIPTION: Record<SessionKind, string> = {
   "course-marche": "Alterner 2 min de course et 1 min de marche, allure très facile",
   endurance: "Footing en endurance fondamentale, zone 2, tu dois pouvoir parler",
   "sortie-longue": "Sortie longue en zone 2, régulière du début à la fin",
-  tempo: "Blocs à allure seuil entre un échauffement et un retour au calme",
+  tempo:
+    "Blocs à allure soutenue (seuil, puis allure objectif) entre un échauffement et un retour au calme",
   fractionne: "Répétitions courtes et rapides, récupération en trottinant",
   test: "Test de fin de plan sur la distance objectif",
   objectif: "Course objectif",
@@ -285,8 +357,17 @@ export function buildWeek(
   const phase = phaseOf(index, profile.weeks);
   const n = profile.runDaysPerWeek;
   const race = raceOf(objectives, index);
-  const kinds = runKinds(profile, index, phase, volume.deload);
-  const durations = splitRun(volume.minutes, n);
+  const kinds = runKinds(profile, index, phase, volume.deload, volume.minutes);
+  const durations = fitQuality(profile, index, kinds, splitRun(volume.minutes, n, profile.goal));
+  if (phase === "test" && !race) {
+    // Le test : 15 min d'échauffement, la distance objectif, 10 min de retour au calme.
+    const test = 25 + raceMinutes(profile, GOAL_DISTANCE_KM[profile.goal]);
+    if (test > durations[n - 1]) {
+      durations[n - 1] = test;
+      // Le test prend plus de place : les footings d'avant restent très courts.
+      for (let i = 0; i < n - 1; i++) durations[i] = Math.min(durations[i], 20);
+    }
+  }
   const runDays = race ? [...RUN_DAYS[n].slice(0, n - 1), race.day] : RUN_DAYS[n];
   const sessions: Session[] = race
     ? raceWeekRuns(profile, volume, race)
@@ -334,7 +415,8 @@ export function buildWeek(
     index,
     phase,
     deload: volume.deload,
-    runMinutes: volume.minutes,
+    // La semaine de test compte ses minutes réelles, test compris.
+    runMinutes: phase === "test" && !race ? runMinutesOf({ sessions }) : volume.minutes,
     sessions,
     ...(race ? { objective: race.priority } : {}),
   };

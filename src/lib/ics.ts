@@ -19,11 +19,14 @@ export function workoutText(profile: Profile, week: Week, s: Session): string[] 
   const dur = (sec: number) => (sec % 60 === 0 ? `${sec / 60} min` : formatDuration(sec));
   const lines = [sessionDescription(s), ""];
   for (const b of w.blocks) {
+    const work = b.distanceM
+      ? `${String(b.distanceM / 1000).replace(".", ",")} km`
+      : dur(b.workSec);
     const head =
       b.repeat > 1
-        ? `${b.label} : ${b.repeat} × ${dur(b.workSec)}${b.recoverySec ? ` (récup ${dur(b.recoverySec)})` : ""}`
+        ? `${b.label} : ${b.repeat} × ${work}${b.recoverySec ? ` (récup ${dur(b.recoverySec)})` : ""}`
         : b.workSec > 0
-          ? `${b.label} : ${dur(b.workSec)}`
+          ? `${b.label} : ${work}`
           : b.label;
     lines.push(`• ${head} — ${INTENSITY_LABEL[b.intensity]} : ${target(profile, b.intensity)}`);
   }

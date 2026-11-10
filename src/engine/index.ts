@@ -15,8 +15,11 @@ export {
   lastBuildUpTo,
   plannedLoad,
   runMinutesOf,
+  qualityRank,
+  splitRun,
 } from "./plan";
 export * from "./form";
+export * from "./goalPace";
 export { adjustPlan, decide, type Adjustment } from "./adjust";
 export * from "./load";
 export * from "./paces";
