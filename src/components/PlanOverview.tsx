@@ -12,7 +12,8 @@ import {
 } from "@/lib/dates";
 import { DAYS_SHORT, KIND_COLOR, PHASE_LABEL, sessionTitle } from "@/lib/labels";
 import { objectivesOn } from "@/lib/objectives";
-import { feedbackKey, type AppState } from "@/lib/state";
+import { feedbackKey, type Activity, type AppState } from "@/lib/state";
+import { FREE_SPORT_LABEL } from "./FreeSession";
 import { Button } from "./ui";
 
 const MONTH = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" });
@@ -124,7 +125,11 @@ export function MonthOverview({
   const end = addDays(state.startDate, total * 7 - 1);
   const inPlan = today >= state.startDate && today <= end;
   const [month, setMonth] = useState(firstOfMonth(inPlan ? today : state.startDate));
-  const firstMonth = firstOfMonth(state.startDate);
+  // Activités importées par jour : le calendrier remonte jusqu'à la plus ancienne.
+  const byDate = new Map<ISODate, Activity[]>();
+  for (const a of state.activities ?? []) byDate.set(a.date, [...(byDate.get(a.date) ?? []), a]);
+  const oldest = [...byDate.keys()].reduce((m, d) => (d < m ? d : m), state.startDate);
+  const firstMonth = firstOfMonth(oldest);
   const lastMonth = firstOfMonth(end);
 
   const gridStart = mondayOf(month);
@@ -146,14 +151,28 @@ export function MonthOverview({
     }),
   );
 
+  const monthActs = [...byDate.entries()]
+    .filter(([d]) => d >= month && d <= monthEnd)
+    .flatMap(([, a]) => a);
+  const actText = (a: Activity) =>
+    a.distanceM
+      ? `${(a.distanceM / 1000).toFixed(1).replace(".", ",")} km`
+      : `${Math.round(a.movingSec / 60)} min`;
+
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold first-letter:uppercase">{monthLabel(month)}</h2>
           <p className="text-sm text-muted tabular-nums">
-            {monthSessions.length} séances · {runMinutesOf({ sessions: monthSessions })} min de
-            course · {plannedLoad({ sessions: monthSessions })} UA prévues
+            {[
+              monthSessions.length &&
+                `${monthSessions.length} séances · ${runMinutesOf({ sessions: monthSessions })} min de course · ${plannedLoad({ sessions: monthSessions })} UA prévues`,
+              monthActs.length &&
+                `${monthActs.length} activité${monthActs.length > 1 ? "s" : ""} importée${monthActs.length > 1 ? "s" : ""}, ${Math.round(monthActs.reduce((t, a) => t + a.distanceM, 0) / 1000)} km`,
+            ]
+              .filter(Boolean)
+              .join(" · ") || "Rien ce mois-ci"}
           </p>
         </div>
         <div className="flex gap-2">
@@ -188,6 +207,9 @@ export function MonthOverview({
               const slot = sessionsOn(date);
               const outside = date < month || date > monthEnd;
               const goals = objectivesOn(state, date);
+              const acts = byDate.get(date) ?? [];
+              const actCls =
+                "block truncate rounded border border-[#fc4c02]/50 px-1 py-0.5 text-[10px] leading-tight text-[#c43c02] sm:text-xs";
               const body = (
                 <>
                   <span
@@ -206,6 +228,32 @@ export function MonthOverview({
                       <span className="hidden sm:inline"> min</span>
                     </span>
                   ))}
+                  {acts.map((a) => {
+                    const text = (
+                      <>
+                        <span className="hidden sm:inline">{FREE_SPORT_LABEL[a.sport]} · </span>
+                        {actText(a)}
+                      </>
+                    );
+                    // Dans le plan, le jour est un bouton : pas de lien à l'intérieur.
+                    return slot ? (
+                      <span key={a.id} className={actCls}>
+                        {text}
+                      </span>
+                    ) : (
+                      <a
+                        key={a.id}
+                        href={`https://www.strava.com/activities/${a.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={a.name}
+                        aria-label={`${a.name}, ${FREE_SPORT_LABEL[a.sport]}, ${actText(a)}, voir sur Strava`}
+                        className={`${actCls} hover:bg-[#fc4c02]/10`}
+                      >
+                        {text}
+                      </a>
+                    );
+                  })}
                   {goals
                     .filter((g) => !slot?.sessions.some((s) => s.objective?.label === g.label))
                     .map((g) => (
@@ -230,7 +278,7 @@ export function MonthOverview({
                     slot.sessions
                       .map((s) => `${sessionTitle(s, origin)} ${s.durationMin} min`)
                       .join(", ") || "repos"
-                  }`}
+                  }${acts.length ? `, fait : ${acts.map((a) => `${FREE_SPORT_LABEL[a.sport]} ${actText(a)}`).join(", ")}` : ""}`}
                   className={`${cls} bg-card transition hover:bg-card-2`}
                 >
                   {body}
@@ -244,7 +292,10 @@ export function MonthOverview({
           </div>
         ))}
       </div>
-      <p className="text-xs text-muted">Touche un jour pour ouvrir sa semaine en détail.</p>
+      <p className="text-xs text-muted">
+        Touche un jour du plan pour ouvrir sa semaine en détail. Les cadres orange sont tes
+        activités importées de Strava ; avant le plan, elles ouvrent l&apos;activité sur Strava.
+      </p>
     </section>
   );
 }
