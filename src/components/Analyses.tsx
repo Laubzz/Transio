@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ORIGIN_LABEL, formatPace, formatPaceRange } from "@/engine";
+import { ORIGIN_LABEL, formatPace, formatPaceRange, runMinutesOf } from "@/engine";
 import { summary } from "@/lib/analytics";
 import { formatShort, type ISODate } from "@/lib/dates";
+import { formByWeek } from "@/lib/form";
 import { knownMaxHr, oneRepMax, runAnalysis, runSummary, weeklyRunMetrics } from "@/lib/insights";
 import { sessionLabel } from "@/lib/labels";
 import type { AppState } from "@/lib/state";
@@ -76,18 +77,53 @@ export function Analyses() {
       ) : tab === "force" ? (
         <Force state={state} />
       ) : s.weeks.length === 0 ? (
-        <Card>
-          <p className="font-semibold">Ton plan n&apos;a pas encore commencé</p>
-          <p className="mt-1 text-sm text-muted">
-            Les analyses apparaîtront dès tes premières séances notées.
-          </p>
-        </Card>
+        <>
+          <Card>
+            <p className="font-semibold">Ton plan n&apos;a pas encore commencé</p>
+            <p className="mt-1 text-sm text-muted">
+              Les analyses apparaîtront dès tes premières séances notées.
+            </p>
+          </Card>
+          {tab === "charge" && <FormChart state={state} today={today} currentWeek={null} />}
+        </>
       ) : tab === "charge" ? (
         <Charge state={state} today={today} />
       ) : (
         <Courses state={state} />
       )}
     </div>
+  );
+}
+
+/** Courbes de forme : réalisé jusqu'à aujourd'hui, projeté ensuite d'après les séances prévues. */
+function FormChart({
+  state,
+  today,
+  currentWeek,
+}: {
+  state: AppState;
+  today: ISODate;
+  currentWeek: number | null;
+}) {
+  return (
+    <LineChart
+      title="Courbes de forme (réalisé, puis projeté d'après le plan)"
+      unit="UA"
+      note={`Condition : charge moyenne sur 6 semaines. Fatigue : charge moyenne sur 1 semaine. Fraîcheur : condition moins fatigue. ${
+        currentWeek
+          ? `Jusqu'à la semaine ${currentWeek}, les courbes suivent tes séances notées ; ensuite, elles`
+          : "Les courbes"
+      } suivent les séances prévues et se recalculent dès que tu modifies le plan.`}
+      rows={formByWeek(state, today).map((w) => ({
+        label: `S${w.weekIndex}`,
+        values: { fitness: w.fitness, fatigue: w.fatigue, form: w.form },
+      }))}
+      series={[
+        { key: "fitness", label: "Condition", color: "#2ee6c5" },
+        { key: "fatigue", label: "Fatigue", color: "#ff7a45" },
+        { key: "form", label: "Fraîcheur", color: "#4fb6f0", dashed: true },
+      ]}
+    />
   );
 }
 
@@ -142,6 +178,8 @@ function Charge({ state, today }: { state: AppState; today: ISODate }) {
         })}
       />
 
+      <FormChart state={state} today={today} currentWeek={cur?.weekIndex ?? null} />
+
       <BarChart
         title="Minutes de course par semaine"
         unit="min"
@@ -152,10 +190,10 @@ function Charge({ state, today }: { state: AppState; today: ISODate }) {
           return {
             label: `S${pw.index}`,
             value: w?.doneRun ?? 0,
-            reference: pw.runMinutes,
+            reference: runMinutesOf(pw),
             tooltip: w
-              ? `Semaine ${pw.index} : ${w.doneRun} min faites sur ${pw.runMinutes} prévues`
-              : `Semaine ${pw.index} : ${pw.runMinutes} min prévues`,
+              ? `Semaine ${pw.index} : ${w.doneRun} min faites sur ${runMinutesOf(pw)} prévues`
+              : `Semaine ${pw.index} : ${runMinutesOf(pw)} min prévues`,
           };
         })}
       />

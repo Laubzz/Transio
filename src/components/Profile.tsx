@@ -26,6 +26,7 @@ import { supabase } from "@/lib/supabase";
 import { useAccount } from "@/lib/sync";
 import { removePeriod, savePeriod } from "@/lib/coaching";
 import { formatShort } from "@/lib/dates";
+import { strengthSummary } from "./StrengthQuestions";
 import { Button, ButtonLink, Card, Kicker } from "./ui";
 
 const PLACE_LABEL = {
@@ -59,7 +60,11 @@ export function Profile() {
     [
       "Renforcement",
       p.strengthPerWeek
-        ? `${p.strengthPerWeek} par semaine, ${PLACE_LABEL[p.strengthPlace ?? "maison"]}`
+        ? `${
+            p.strengthBlocks
+              ? strengthSummary({ ...p.strengthBlocks, mobility: p.mobility ?? false })
+              : `${p.strengthPerWeek} par semaine`
+          }, ${PLACE_LABEL[p.strengthPlace ?? "maison"]}`
         : "Aucun",
     ],
     [

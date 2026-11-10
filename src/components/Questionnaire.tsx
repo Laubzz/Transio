@@ -9,7 +9,6 @@ import {
   type InjuryZone,
   type OriginSport,
   type Profile,
-  type StrengthPlace,
   formatDuration,
   parseDuration,
 } from "@/engine";
@@ -18,6 +17,7 @@ import { GOAL_HINT, INJURY_LABEL, ORIGIN_HINT } from "@/lib/labels";
 import { createState } from "@/lib/state";
 import { saveState, useAppState, useToday } from "@/lib/store";
 import { useAccount } from "@/lib/sync";
+import { StrengthQuestions, maxStrength, type StrengthChoice } from "./StrengthQuestions";
 import { Button, ButtonLink, Kicker, OptionCard, Segmented } from "./ui";
 
 const STEPS = ["Ton sport", "Ton corps", "Ton objectif", "Ta semaine"] as const;
@@ -44,8 +44,12 @@ export function Questionnaire() {
   const [start, setStart] = useState<string | null>(null);
   const [runDays, setRunDays] = useState<2 | 3 | 4>(3);
   const [keepOrigin, setKeepOrigin] = useState(true);
-  const [strength, setStrength] = useState<0 | 1 | 2>(1);
-  const [place, setPlace] = useState<StrengthPlace>("maison");
+  const [strength, setStrength] = useState<StrengthChoice>({
+    haut: 0,
+    bas: 1,
+    mobility: false,
+    place: "maison",
+  });
   const [ref5k, setRef5k] = useState("");
   const account = useAccount();
 
@@ -73,6 +77,10 @@ export function Questionnaire() {
   const startDate = start ?? nextMonday(today);
   const startOk = /^\d{4}-\d{2}-\d{2}$/.test(startDate) && daysBetween(today, startDate) >= -6;
 
+  const keepsOrigin = origin !== "reprise" && keepOrigin;
+  const strengthMax = maxStrength(runDays, keepsOrigin);
+  const strengthOk = strength.haut + strength.bas <= strengthMax;
+
   const toggleInjury = (z: InjuryZone) =>
     setInjuries((cur) => {
       const next = { ...cur };
@@ -93,9 +101,11 @@ export function Questionnaire() {
       goal,
       weeks,
       runDaysPerWeek: runDays,
-      keepOriginSport: origin !== "reprise" && keepOrigin,
-      strengthPerWeek: strength,
-      strengthPlace: place,
+      keepOriginSport: keepsOrigin,
+      strengthPerWeek: strength.haut + strength.bas,
+      strengthBlocks: { haut: strength.haut, bas: strength.bas },
+      mobility: strength.mobility,
+      strengthPlace: strength.place,
       reference5kSec: ref5kSec ?? undefined,
     };
     saveState(createState(profile, mondayOf(startDate)));
@@ -288,24 +298,6 @@ export function Questionnaire() {
             onChange={setRunDays}
             options={[2, 3, 4].map((n) => ({ value: n as 2 | 3 | 4, label: String(n) }))}
           />
-          <Segmented
-            label="Séances de renforcement"
-            value={strength}
-            onChange={setStrength}
-            options={[0, 1, 2].map((n) => ({ value: n as 0 | 1 | 2, label: String(n) }))}
-          />
-          {strength > 0 && (
-            <Segmented
-              label="Où préfères-tu faire ton renforcement ?"
-              value={place}
-              onChange={setPlace}
-              options={[
-                { value: "maison", label: "À la maison" },
-                { value: "salle", label: "En salle de muscu" },
-                { value: "les-deux", label: "Les deux" },
-              ]}
-            />
-          )}
           {origin !== "reprise" && (
             <Segmented
               label={`Garder une séance de ${ORIGIN_LABEL[origin].toLowerCase()} chaque semaine ?`}
@@ -317,6 +309,7 @@ export function Questionnaire() {
               ]}
             />
           )}
+          <StrengthQuestions value={strength} onChange={setStrength} max={strengthMax} />
           <p className="rounded-2xl border border-white/10 bg-card p-4 text-sm text-muted">
             Transio t&apos;accompagne dans l&apos;entraînement et la progressivité. Il ne remplace
             pas un avis médical.
@@ -336,7 +329,7 @@ export function Questionnaire() {
             Continuer
           </Button>
         ) : (
-          <Button onClick={finish} disabled={!startOk || !ref5kOk}>
+          <Button onClick={finish} disabled={!startOk || !ref5kOk || !strengthOk}>
             Générer mon plan
           </Button>
         )}

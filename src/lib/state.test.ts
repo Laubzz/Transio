@@ -148,6 +148,7 @@ describe("état de l'app", () => {
       freeSessions: [],
       metrics: {},
       periods: [],
+      objectives: [],
     });
     expect(parseState(null)).toBeNull();
     expect(parseState("pas du json")).toBeNull();

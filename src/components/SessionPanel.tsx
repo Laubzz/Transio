@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { SESSION_DESCRIPTION, type Session } from "@/engine";
+import { sessionDescription, type Session } from "@/engine";
 import { formatLong, type ISODate } from "@/lib/dates";
 import { MISS_ACTION_LABEL, MISS_CAUSE_LABEL, SENSATION_LABEL, recordMissed } from "@/lib/coaching";
-import { KIND_LABEL, RPE_LABEL, sessionLabel } from "@/lib/labels";
+import { autoReview, submitFeedback } from "@/lib/adapt";
+import { KIND_LABEL, RPE_LABEL, sessionTitle } from "@/lib/labels";
 import { feedbackKey, isReviewed, matchActivity, recordFeedback, type AppState } from "@/lib/state";
 import { saveState } from "@/lib/store";
 import { FeedbackForm } from "./FeedbackForm";
@@ -74,7 +75,8 @@ export function SessionPanel({
   const [error, setError] = useState<string | null>(null);
 
   const save = (next: Parameters<typeof recordFeedback>[3]) => {
-    saveState(recordFeedback(state, weekIndex, session.day, next));
+    // Le retour est analysé tout de suite : la suite du plan s'adapte.
+    saveState(submitFeedback(state, weekIndex, session.day, next, today));
     setEditing(false);
   };
 
@@ -96,7 +98,7 @@ export function SessionPanel({
               {!hero && ` · ${formatLong(date)}`}
             </p>
             <h3 className={`mt-1 font-extrabold ${hero ? "text-2xl" : "text-lg"}`}>
-              {sessionLabel(session.kind, originLabel)}
+              {sessionTitle(session, originLabel)}
             </h3>
           </div>
           {!hero && <StatusBadge status={status} />}
@@ -105,7 +107,7 @@ export function SessionPanel({
           {session.durationMin} min · difficulté visée {session.targetRpe}/10
         </p>
         <p className={`mt-2 text-sm ${hero ? "text-night/80" : "text-muted"}`}>
-          {SESSION_DESCRIPTION[session.kind]}
+          {sessionDescription(session)}
         </p>
         {session.note && (
           <p
@@ -158,7 +160,7 @@ export function SessionPanel({
               onSave={save}
               onMiss={(m) => {
                 try {
-                  saveState(recordMissed(state, weekIndex, session.day, m));
+                  saveState(autoReview(recordMissed(state, weekIndex, session.day, m), today));
                   setEditing(false);
                   setError(null);
                 } catch (e) {
@@ -204,6 +206,11 @@ export function SessionPanel({
                 </span>
               ))}
               {fb.comment && <span className="block text-muted">« {fb.comment} »</span>}
+              {fb.adapt && (
+                <span className="mt-2 block rounded-lg bg-origin/10 px-2 py-1 text-origin">
+                  Plan adapté : {fb.adapt.text}
+                </span>
+              )}
             </p>
             {!locked && (
               <Button variant="ghost" className="px-4 py-2" onClick={() => setEditing(true)}>

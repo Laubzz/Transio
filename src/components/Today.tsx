@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { ORIGIN_LABEL } from "@/engine";
-import { formatLong, position, sessionDate } from "@/lib/dates";
+import { daysBetween, formatLong, position, sessionDate } from "@/lib/dates";
 import { periodOn } from "@/lib/coaching";
 import { PHASE_LABEL } from "@/lib/labels";
+import { nextObjective, preparedBy } from "@/lib/objectives";
 import { feedbackKey, pendingReview } from "@/lib/state";
 import { useAppState, useToday } from "@/lib/store";
 import { NextCyclePrompt } from "./NextCycle";
@@ -81,6 +82,7 @@ export function Today() {
   }
 
   const week = plan.weeks[pos.weekIndex - 1];
+  const goal = nextObjective(state, today);
   const todays = week.sessions.filter((s) => s.day === pos.day);
   const toRate = week.sessions.filter(
     (s) => s.day < pos.day && !state.feedback[feedbackKey(week.index, s.day)],
@@ -104,6 +106,24 @@ export function Today() {
         </p>
       </header>
 
+      {goal && (
+        <Link
+          href="/calendrier"
+          className="block rounded-2xl border border-[#ffd166]/40 bg-[#ffd166]/10 p-4 text-sm hover:bg-[#ffd166]/15"
+        >
+          <strong>
+            ★ {goal.label}{" "}
+            {daysBetween(today, goal.date) === 0
+              ? "aujourd'hui"
+              : `dans ${daysBetween(today, goal.date)} jour${daysBetween(today, goal.date) > 1 ? "s" : ""}`}
+          </strong>
+          <span className="block text-muted">
+            {goal.priority === "principal"
+              ? "Objectif principal"
+              : `Objectif secondaire, en préparation de ${preparedBy(state, goal)}`}
+          </span>
+        </Link>
+      )}
       {pending !== null && <ReviewPrompt state={state} weekIndex={pending} />}
       {week.phase === "test" && <NextCyclePrompt finished={false} />}
       {pending === null && lastReview && lastReview.weekIndex === week.index - 1 && (

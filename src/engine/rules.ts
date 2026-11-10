@@ -22,6 +22,12 @@ export const RULES = {
   rpeOverTarget: 1.5,
   /** Part minimale de séances faites pour progresser. */
   minCompletion: 0.67,
+  /** Semaine d'un objectif secondaire : léger affûtage, sans casser la progression. */
+  secondaryRaceFactor: 0.85,
+  /** Hausse de charge tolérée quand une semaine est modifiée à la main. */
+  editLoadTolerance: 0.1,
+  /** Séances de renforcement par semaine, au plus. */
+  maxStrengthPerWeek: 4,
   minWeeks: 6,
   maxWeeks: 24,
 } as const;
@@ -67,6 +73,7 @@ export const TARGET_RPE: Record<SessionKind, number> = {
   tempo: 7,
   fractionne: 8,
   test: 9,
+  objectif: 9,
   "sport-origine": 5,
   renfo: 6,
 };
