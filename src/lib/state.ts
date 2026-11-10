@@ -376,6 +376,39 @@ export function estimate5k(activities: Activity[], today: ISODate): number | nul
   return Math.round(Math.min(...candidates));
 }
 
+/** Minutes de course par semaine sur les 4 dernières semaines, d'après les activités importées. */
+export function recentRunMinutes(activities: Activity[], today: ISODate): number {
+  const since = addDays(today, -28);
+  const sec = activities
+    .filter((a) => a.sport === "course" && a.date > since && a.date <= today)
+    .reduce((t, a) => t + a.movingSec, 0);
+  return Math.round(sec / 60 / 4 / 5) * 5;
+}
+
+/**
+ * Nouveau plan après avoir refait le questionnaire : le plan et les retours repartent de zéro,
+ * mais ce qui ne dépend pas du plan est gardé (activités Strava, métriques, périodes, objectifs,
+ * réglage de l'agenda, cycles archivés).
+ */
+export function restartState(
+  prev: AppState | null,
+  profile: Profile,
+  startDate: ISODate,
+): AppState {
+  const next = createState(profile, startDate);
+  if (!prev) return next;
+  return {
+    ...next,
+    activities: prev.activities,
+    stravaFullImport: prev.stravaFullImport,
+    history: prev.history,
+    calendar: prev.calendar,
+    metrics: prev.metrics,
+    periods: prev.periods,
+    objectives: prev.objectives,
+  };
+}
+
 /** Change le temps de référence 5 km sans régénérer le plan. */
 export function setReference5k(state: AppState, sec: number | undefined): AppState {
   return {

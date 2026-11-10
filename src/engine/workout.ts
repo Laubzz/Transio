@@ -1,4 +1,12 @@
 import { formatPaceRange, paces, type Intensity } from "./paces";
+import {
+  GOAL_PACE_COOLDOWN_MIN,
+  GOAL_PACE_WARMUP_MIN,
+  goalPaceRecovery,
+  goalPaceSec,
+  goalPaceStep,
+} from "./goalPace";
+import { qualityRank } from "./plan";
 import { ORIGIN_LABEL } from "./rules";
 import type { Goal, Profile, Session, StrengthPlace, Week } from "./types";
 
@@ -12,6 +20,8 @@ export interface RunBlock {
   intensity: Intensity;
   recoverySec?: number;
   recoveryIntensity?: Intensity;
+  /** Distance d'une répétition, quand le bloc se court au kilomètre. */
+  distanceM?: number;
 }
 
 export interface Exercise {
@@ -69,6 +79,30 @@ export function target(profile: Profile, intensity: Intensity): string {
   return INTENSITY_FEEL[intensity];
 }
 
+/** Blocs au kilomètre à l'allure objectif qui tiennent dans le temps de travail disponible. */
+function goalPaceBlocks(profile: Profile, week: Week, workMin: number): RunBlock[] | null {
+  const pace = goalPaceSec(profile);
+  const step = goalPaceStep(profile, qualityRank(profile, week.index), workMin);
+  if (!pace || !step) return null;
+  const block = (km: number, repeat: number, last: boolean): RunBlock => ({
+    type: "run",
+    label: "Allure objectif",
+    repeat,
+    workSec: Math.round(km * pace),
+    intensity: "objectif",
+    distanceM: km * 1000,
+    ...(repeat > 1 || !last
+      ? { recoverySec: goalPaceRecovery(km), recoveryIntensity: "endurance" }
+      : {}),
+  });
+  return step.every((km) => km === step[0])
+    ? [block(step[0], step.length, true)]
+    : step.map((km, i) => block(km, 1, i === step.length - 1));
+}
+
+/** Temps de récupération d'un bloc : entre les répétitions, ou après un bloc suivi d'un autre. */
+const recoveries = (b: RunBlock) => (b.recoverySec ?? 0) * (b.repeat > 1 ? b.repeat - 1 : 1);
+
 function runBlocks(profile: Profile, week: Week, s: Session): RunBlock[] {
   const d = s.durationMin;
   const cont = (label: string, minutes: number, intensity: Intensity): RunBlock => ({
@@ -108,6 +142,25 @@ function runBlocks(profile: Profile, week: Week, s: Session): RunBlock[] {
     case "tempo": {
       const warm = d >= 40 ? 15 : 10;
       const work = d - warm - 5;
+      // Dès la phase rythme, la séance se court à l'allure de la course visée, au kilomètre.
+      const goal = week.deload
+        ? null
+        : goalPaceBlocks(profile, week, d - GOAL_PACE_WARMUP_MIN - GOAL_PACE_COOLDOWN_MIN);
+      if (goal) {
+        // Le temps qui reste allonge l'échauffement (jusqu'à 20 min), puis le retour au calme.
+        const used = goal.reduce((t, x) => t + x.repeat * x.workSec + recoveries(x), 0) / 60;
+        const spare = Math.max(0, d - GOAL_PACE_WARMUP_MIN - GOAL_PACE_COOLDOWN_MIN - used);
+        const extraWarm = Math.min(10, Math.round(spare));
+        return [
+          cont("Échauffement", GOAL_PACE_WARMUP_MIN + extraWarm, "endurance"),
+          ...goal,
+          cont(
+            "Retour au calme",
+            GOAL_PACE_COOLDOWN_MIN + Math.round(spare - extraWarm),
+            "endurance",
+          ),
+        ];
+      }
       const reps = Math.max(1, Math.floor((work + 2) / 10));
       return [
         cont("Échauffement", warm, "endurance"),

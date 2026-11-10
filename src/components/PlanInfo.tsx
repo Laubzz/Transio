@@ -6,14 +6,15 @@ import type { AppState } from "@/lib/state";
 const PHASE_TEXT: Record<Phase, string> = {
   base: "Footings faciles et course-marche : les tendons et les mollets s'habituent aux impacts.",
   rythme:
-    "Une séance au seuil par semaine, sortie longue qui s'allonge, semaines allégées régulières.",
-  specifique: "Fractionné court et blocs au seuil : on prépare l'objectif.",
+    "Une séance à l'allure objectif par semaine (3 × 1 km, puis 4 × 1 km, 2 × 2 km), sortie longue qui s'allonge, semaines allégées régulières.",
+  specifique: "Fractionné court et kilomètres à l'allure objectif : on prépare la course.",
   test: "Semaine allégée, puis le test sur la distance objectif.",
 };
 
 const RULES = [
   "En footing, tu dois pouvoir parler. Si ce n'est pas le cas, ralentis.",
-  "Pas plus de 10 % de course en plus d'une semaine à l'autre.",
+  "Pas plus de 10 % de course en plus d'une semaine à l'autre (10 min quand le volume est encore bas).",
+  "La sortie longue monte jusqu'à une durée au moins égale à celle de ta course objectif.",
   "Douleur au tendon d'Achille, au tibia ou au genou : tu coupes la séance et tu remplaces par du vélo.",
   "Les jours peuvent bouger, mais jamais deux séances dures d'affilée.",
   "Note chaque séance : le bilan de la semaine s'en sert pour ajuster la suite.",
@@ -97,9 +98,9 @@ export function QualitySessions({ state, today }: { state: AppState; today: ISOD
                     <div key={i}>
                       {b.label}
                       {b.repeat > 1
-                        ? ` : ${b.repeat} × ${dur(b.workSec)}${b.recoverySec ? ` (récup ${dur(b.recoverySec)})` : ""}`
+                        ? ` : ${b.repeat} × ${b.distanceM ? `${b.distanceM / 1000} km` : dur(b.workSec)}${b.recoverySec ? ` (récup ${dur(b.recoverySec)})` : ""}`
                         : b.workSec
-                          ? ` : ${dur(b.workSec)}`
+                          ? ` : ${b.distanceM ? `${b.distanceM / 1000} km` : dur(b.workSec)}`
                           : ""}
                       <span className="text-muted">
                         {" "}

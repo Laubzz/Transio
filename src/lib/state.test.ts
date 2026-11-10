@@ -155,3 +155,41 @@ describe("état de l'app", () => {
     expect(parseState(JSON.stringify({ version: 2 }))).toBeNull();
   });
 });
+
+describe("refaire le questionnaire", () => {
+  it("garde les activités Strava et les objectifs, mais repart d'un plan neuf", async () => {
+    const { restartState, recentRunMinutes } = await import("./state");
+    const run = (id: number, date: string, movingSec: number) => ({
+      id,
+      date,
+      sport: "course" as const,
+      name: "Footing",
+      distanceM: 8000,
+      movingSec,
+    });
+    const activities = [run(1, "2026-01-02", 2400), run(2, "2025-12-20", 3600)];
+    const prev = {
+      ...recordFeedback(fresh(), 1, 0, { done: true, rpe: 5 }),
+      activities,
+      stravaFullImport: true,
+      objectives: [
+        {
+          id: "o",
+          date: "2026-06-01",
+          label: "10 km",
+          distanceKm: 10,
+          priority: "principal" as const,
+        },
+      ],
+    };
+    const next = restartState(prev, { ...VELO_TO_10K, weeks: 8 }, "2026-02-02");
+    expect(next.plan.weeks).toHaveLength(8);
+    expect(next.feedback).toEqual({});
+    expect(next.activities).toEqual(activities);
+    expect(next.stravaFullImport).toBe(true);
+    expect(next.objectives).toHaveLength(1);
+    // 40 + 60 min sur 4 semaines : 25 min par semaine.
+    expect(recentRunMinutes(activities, "2026-01-05")).toBe(25);
+    expect(recentRunMinutes(activities, "2026-03-01")).toBe(0);
+  });
+});

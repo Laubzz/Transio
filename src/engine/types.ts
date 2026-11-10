@@ -40,6 +40,8 @@ export interface Profile {
   mobility?: boolean;
   /** Où se fait le renforcement (absent sur les anciens profils : « maison »). */
   strengthPlace?: StrengthPlace;
+  /** Minutes de course par semaine en ce moment (0 ou absent : ne court pas encore). */
+  currentRunMinutes?: number;
   /** Temps de référence sur 5 km, en secondes, pour calculer les allures. */
   reference5kSec?: number;
   /**

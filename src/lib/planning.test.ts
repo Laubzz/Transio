@@ -79,8 +79,8 @@ describe("modifier le plan", () => {
 
   it("prévient quand deux séances dures se suivent", () => {
     const s = fresh();
-    const w = s.plan.weeks.find((x) => x.sessions.some((y) => y.kind === "fractionne"))!;
-    const hard = w.sessions.find((x) => x.kind === "fractionne")!;
+    const w = s.plan.weeks.find((x) => x.sessions.some((y) => y.kind === "tempo"))!;
+    const hard = w.sessions.find((x) => x.kind === "tempo")!;
     const free = freeDays(s, w.index, TODAY).find((d) => Math.abs(d - hard.day) === 1)!;
     const r = addSession(s, w.index, free, { kind: "tempo", durationMin: 20 }, TODAY);
     expect(r.message).toContain("deux séances dures se suivent");

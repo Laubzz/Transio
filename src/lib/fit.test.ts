@@ -4,7 +4,8 @@ import { VELO_TO_10K } from "@/engine/fixtures";
 import { generatePlan } from "@/engine";
 import { workoutFit, workoutSteps } from "./fit";
 
-const profile = { ...VELO_TO_10K, reference5kSec: 1650 };
+// Un profil qui court déjà : assez de volume pour avoir du fractionné en phase spécifique.
+const profile = { ...VELO_TO_10K, reference5kSec: 1650, currentRunMinutes: 150 };
 const plan = generatePlan(profile);
 const find = (kind: string) => {
   for (const w of plan.weeks) {
