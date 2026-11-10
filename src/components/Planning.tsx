@@ -247,7 +247,7 @@ export function Planning() {
                     )}
                   </div>
                   {objectivesOn(state, date).map((o) => (
-                    <p key={o.id} className="px-1 text-xs font-semibold text-[#ffd166]">
+                    <p key={o.id} className="px-1 text-xs font-semibold text-[#a16207]">
                       ★ {o.label} ·{" "}
                       {o.priority === "principal" ? "objectif principal" : "objectif secondaire"}
                     </p>
@@ -265,9 +265,7 @@ export function Planning() {
                       }`}
                       style={{ borderLeftColor: KIND_COLOR[s.kind] }}
                     >
-                      <span className="font-semibold" style={{ color: KIND_COLOR[s.kind] }}>
-                        {sessionTitle(s, origin)}
-                      </span>
+                      <span className="font-semibold">{sessionTitle(s, origin)}</span>
                       <span className="text-xs text-muted tabular-nums">
                         {s.durationMin} min · visé {s.targetRpe}/10
                       </span>

@@ -115,7 +115,7 @@ export function LineChart({
                 y={H - 8}
                 textAnchor="middle"
                 fontSize={11}
-                fill={hover === i ? "#f3f5fa" : "#8c96b3"}
+                fill={hover === i ? "#1a1c18" : "#8c96b3"}
               >
                 {r.label}
               </text>
@@ -163,7 +163,7 @@ export function LineChart({
                       cx={x(i)}
                       cy={y(v)}
                       r={s.dashed ? 2.5 : 4}
-                      fill={s.dashed ? s.color : "#141b31"}
+                      fill={s.dashed ? s.color : "#ffffff"}
                       stroke={s.color}
                       strokeWidth={2}
                     />

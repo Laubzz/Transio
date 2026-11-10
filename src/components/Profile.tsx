@@ -358,7 +358,7 @@ function StravaCard({ state }: { state: AppState }) {
             fréquence cardiaque.
           </p>
           <Button
-            className="mt-4 bg-none bg-[#fc4c02] text-white"
+            className="mt-4 bg-none bg-[#fc4c02] text-night"
             onClick={() => startStravaConnect(status.clientId)}
           >
             Connecter Strava
@@ -416,7 +416,7 @@ function PeriodsCard({ state }: { state: AppState }) {
   const [error, setError] = useState<string | null>(null);
   const periods = state.periods ?? [];
   const input =
-    "w-full rounded-xl border border-white/15 bg-night px-3 py-2 text-sm focus:border-target focus:outline-none [color-scheme:dark]";
+    "w-full rounded-xl border border-white/15 bg-night px-3 py-2 text-sm focus:border-target focus:outline-none [color-scheme:light]";
   return (
     <Card>
       <h2 className="font-semibold">Tes périodes</h2>

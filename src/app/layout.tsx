@@ -6,11 +6,11 @@ export const metadata: Metadata = {
   title: "Transio",
   description:
     "Change de sport, garde tes acquis : le plan d'entraînement qui part de ton ancien sport.",
-  appleWebApp: { capable: true, title: "Transio", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Transio", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0A0F1E",
+  themeColor: "#f5f5f1",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

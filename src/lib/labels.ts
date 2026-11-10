@@ -77,7 +77,7 @@ export function sessionTitle(s: Session, originLabel: string): string {
 /** Couleur de chaque type de séance (calendrier, légende). */
 export const KIND_COLOR: Record<SessionKind, string> = {
   "course-marche": "#7fd3b5",
-  endurance: "#2ee6c5",
+  endurance: "#7cb518",
   "sortie-longue": "#4fb6f0",
   tempo: "#ff7a45",
   fractionne: "#ff8fae",

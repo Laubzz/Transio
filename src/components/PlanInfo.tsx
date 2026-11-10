@@ -1,6 +1,6 @@
 import { INTENSITY_LABEL, buildWorkout, formatDuration, target, type Phase } from "@/engine";
 import { formatShort, position, sessionDate, type ISODate } from "@/lib/dates";
-import { KIND_COLOR, KIND_LABEL, PHASE_LABEL } from "@/lib/labels";
+import { KIND_LABEL, PHASE_LABEL } from "@/lib/labels";
 import type { AppState } from "@/lib/state";
 
 const PHASE_TEXT: Record<Phase, string> = {
@@ -90,9 +90,7 @@ export function QualitySessions({ state, today }: { state: AppState; today: ISOD
                 <td className="px-3 py-2 whitespace-nowrap">
                   S{w.index} · {formatShort(date)}
                 </td>
-                <td className="px-3 py-2 font-semibold" style={{ color: KIND_COLOR[s.kind] }}>
-                  {KIND_LABEL[s.kind]}
-                </td>
+                <td className="px-3 py-2 font-semibold">{KIND_LABEL[s.kind]}</td>
                 <td className="px-3 py-2">
                   {buildWorkout(p, w, s).blocks.map((b, i) => (
                     <div key={i}>

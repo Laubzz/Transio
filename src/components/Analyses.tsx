@@ -119,7 +119,7 @@ function FormChart({
         values: { fitness: w.fitness, fatigue: w.fatigue, form: w.form },
       }))}
       series={[
-        { key: "fitness", label: "Condition", color: "#2ee6c5" },
+        { key: "fitness", label: "Condition", color: "#7cb518" },
         { key: "fatigue", label: "Fatigue", color: "#ff7a45" },
         { key: "form", label: "Fraîcheur", color: "#4fb6f0", dashed: true },
       ]}
@@ -327,7 +327,7 @@ function Courses({ state }: { state: AppState }) {
         fit
         note="Vitesse ÷ FC moyenne sur tes sorties faciles. Si ça monte, tu cours plus vite pour le même effort : ta base progresse."
         rows={m.map((w) => ({ label: `S${w.weekIndex}`, values: { ef: w.efficiency } }))}
-        series={[{ key: "ef", label: "Efficacité", color: "#2ee6c5" }]}
+        series={[{ key: "ef", label: "Efficacité", color: "#7cb518" }]}
       />
       <LineChart
         title="Cadence (pas par minute)"

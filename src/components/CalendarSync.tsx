@@ -107,7 +107,7 @@ export function CalendarSync({ state }: { state: AppState }) {
                   href={google}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-origin to-target px-5 py-3 text-sm font-bold text-night hover:brightness-110"
+                  className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-bold text-night hover:brightness-110"
                 >
                   Ouvrir dans Google Agenda
                 </a>

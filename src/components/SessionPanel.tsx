@@ -84,12 +84,10 @@ export function SessionPanel({
     <article
       className={`overflow-hidden rounded-2xl border ${hero ? "border-transparent" : "border-white/10 bg-card"}`}
     >
-      <div className={hero ? "bg-gradient-to-br from-origin to-target p-5 text-night" : "p-4"}>
+      <div className={hero ? "dark-panel p-5" : "p-4"}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p
-              className={`font-mono text-xs tracking-[0.2em] uppercase ${hero ? "text-night/70" : "text-muted"}`}
-            >
+            <p className={`font-mono text-xs tracking-[0.2em] uppercase ${"text-muted"}`}>
               {session.kind === "sport-origine"
                 ? KIND_LABEL[session.kind]
                 : session.impact
@@ -106,12 +104,10 @@ export function SessionPanel({
         <p className={`mt-1 font-semibold ${hero ? "text-lg" : ""}`}>
           {session.durationMin} min · difficulté visée {session.targetRpe}/10
         </p>
-        <p className={`mt-2 text-sm ${hero ? "text-night/80" : "text-muted"}`}>
-          {sessionDescription(session)}
-        </p>
+        <p className={`mt-2 text-sm ${"text-muted"}`}>{sessionDescription(session)}</p>
         {session.note && (
           <p
-            className={`mt-2 rounded-lg px-2 py-1 text-xs font-semibold ${hero ? "bg-night/15 text-night" : "bg-origin/10 text-origin"}`}
+            className={`mt-2 rounded-lg px-2 py-1 text-xs font-semibold ${hero ? "bg-white/10 text-ink" : "bg-origin/10 text-origin"}`}
           >
             {session.note}
           </p>

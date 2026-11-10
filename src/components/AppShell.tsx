@@ -41,7 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-full flex-1">
       {/* Barre latérale (ordinateur) */}
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-white/10 bg-card/40 px-3 py-6 md:flex">
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col dark-panel px-3 py-6 md:flex">
         <Logo className="mb-8 px-3 text-2xl" />
         <nav aria-label="Navigation principale" className="flex flex-col gap-1">
           {NAV.map(({ href, label, Icon }) => (
@@ -50,10 +50,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               href={href}
               aria-current={active(href) ? "page" : undefined}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
-                active(href) ? "bg-white/10 text-ink" : "text-muted hover:bg-white/5 hover:text-ink"
+                active(href) ? "bg-target text-night" : "text-muted hover:bg-white/5 hover:text-ink"
               }`}
             >
-              <Icon className={active(href) ? "text-target" : ""} />
+              <Icon />
               {label}
             </Link>
           ))}
