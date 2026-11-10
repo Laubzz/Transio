@@ -142,6 +142,15 @@ function runBlocks(profile: Profile, week: Week, s: Session): RunBlock[] {
         cont("Retour au calme", 5, "endurance"),
       ];
     }
+    case "objectif": {
+      const o = s.objective;
+      const short = (o?.distanceKm ?? 10) <= 5;
+      return [
+        cont("Échauffement", short ? 15 : 10, "endurance"),
+        { ...cont(`Course : ${o?.label ?? "objectif"}`, 0, "objectif"), workSec: 0 },
+        cont("Retour au calme", 5, "marche"),
+      ];
+    }
     case "test":
       return [
         cont("Échauffement", 15, "endurance"),
@@ -207,6 +216,77 @@ const GYM: Exercise[] = [
   { name: "Gainage planche", sets: 3, reps: "45 s", cue: "Corps aligné, sans creuser le dos." },
 ];
 
+const UPPER_HOME: Exercise[] = [
+  { name: "Pompes", sets: 3, reps: "10", cue: "Sur les genoux si besoin, corps bien aligné." },
+  {
+    name: "Tirage avec élastique ou rowing sous une table",
+    sets: 3,
+    reps: "12",
+    cue: "Serre les omoplates en fin de mouvement.",
+  },
+  {
+    name: "Pompes piquées",
+    sets: 3,
+    reps: "8",
+    cue: "Hanches hautes, la tête descend entre les mains.",
+  },
+  {
+    name: "Dips sur une chaise",
+    sets: 3,
+    reps: "10",
+    cue: "Coudes vers l'arrière, épaules basses.",
+  },
+  {
+    name: "Superman",
+    sets: 3,
+    reps: "12",
+    cue: "Décolle bras et jambes 2 secondes, regard vers le sol.",
+  },
+  { name: "Gainage planche", sets: 3, reps: "40 s", cue: "Corps aligné, sans creuser le dos." },
+];
+
+const UPPER_GYM: Exercise[] = [
+  {
+    name: "Développé couché",
+    sets: 4,
+    reps: "8",
+    cue: "Charge que tu pourrais soulever 2 à 3 fois de plus.",
+  },
+  {
+    name: "Tirage vertical ou tractions",
+    sets: 4,
+    reps: "8",
+    cue: "Tire les coudes vers les hanches.",
+  },
+  { name: "Rowing à la poulie", sets: 3, reps: "10", cue: "Dos droit, serre les omoplates." },
+  { name: "Développé militaire", sets: 3, reps: "8", cue: "Gaine le ventre, sans cambrer." },
+  { name: "Face pull", sets: 3, reps: "12", cue: "Coudes hauts, tire vers le front." },
+  { name: "Gainage planche", sets: 3, reps: "45 s", cue: "Corps aligné, sans creuser le dos." },
+];
+
+/** Bloc de mobilité ajouté en fin de séance (environ 10 minutes). */
+const MOBILITY: Exercise[] = [
+  {
+    name: "Mobilité de cheville, genou au mur",
+    sets: 2,
+    reps: "10 par jambe",
+    cue: "Talon au sol, le genou avance vers le mur.",
+  },
+  {
+    name: "Ouverture de hanche en fente basse",
+    sets: 2,
+    reps: "45 s par côté",
+    cue: "Bassin vers l'avant, buste haut.",
+  },
+  {
+    name: "Rotation du buste en fente",
+    sets: 2,
+    reps: "8 par côté",
+    cue: "Le bras monte vers le plafond, suis-le du regard.",
+  },
+  { name: "Chat-vache", sets: 2, reps: "10", cue: "Enroule puis creuse le dos, lentement." },
+];
+
 /** Exercices de pied et de pliométrie légère, à partir de la phase rythme. */
 const PLYO: Exercise = {
   name: "Sauts à la corde ou petits bonds",
@@ -229,15 +309,34 @@ export function strengthPlaceFor(
 
 function strength(profile: Profile, week: Week, s: Session): Workout {
   const place = strengthPlaceFor(profile, week, s);
-  let list = place === "salle" ? GYM : HOME;
-  if (week.phase !== "base" && !week.deload) list = [...list.slice(0, -1), PLYO, list.at(-1)!];
+  const upper = s.focus === "haut";
+  let list = upper ? (place === "salle" ? UPPER_GYM : UPPER_HOME) : place === "salle" ? GYM : HOME;
+  // La pliométrie ne concerne que les jambes.
+  if (!upper && week.phase !== "base" && !week.deload) {
+    list = [...list.slice(0, -1), PLYO, list.at(-1)!];
+  }
   const light = week.deload || week.phase === "test";
   return {
     blocks: [],
     place,
-    exercises: list.map((e) => ({ ...e, sets: light ? Math.max(2, e.sets - 1) : e.sets })),
+    exercises: [
+      ...list.map((e) => ({ ...e, sets: light ? Math.max(2, e.sets - 1) : e.sets })),
+      ...(s.mobility ? MOBILITY : []),
+    ],
     notes: [
-      place === "salle" ? "En salle de musculation." : "À la maison, au poids du corps.",
+      place === "salle"
+        ? "En salle de musculation."
+        : upper
+          ? "À la maison, au poids du corps ou avec un élastique."
+          : "À la maison, au poids du corps.",
+      ...(s.focus
+        ? [
+            upper
+              ? "Bloc haut du corps."
+              : "Bloc bas du corps, utile contre les blessures de course.",
+          ]
+        : []),
+      ...(s.mobility ? ["Les 4 derniers exercices forment le bloc de mobilité."] : []),
       ...(light ? ["Semaine allégée : une série de moins par exercice."] : []),
     ],
   };
@@ -263,5 +362,12 @@ export function buildWorkout(profile: Profile, week: Week, s: Session): Workout 
     );
   }
   if (s.kind === "test") notes.push("Note ton temps : il servira à recalculer tes allures.");
+  if (s.objective) {
+    notes.push(
+      s.objective.priority === "principal"
+        ? "C'est le jour J : pars à ton allure objectif, pas plus vite, et accélère sur la fin si tu peux."
+        : `Course de préparation pour ${s.objective.prepFor ?? "ton objectif principal"} : cours à l'allure objectif, teste ta tenue et ton ravitaillement, et garde une petite réserve à l'arrivée.`,
+    );
+  }
   return { blocks: runBlocks(profile, week, s), exercises: [], notes };
 }

@@ -47,8 +47,9 @@ export function LineChart({
   const max = Math.max(...all);
   const min = Math.min(...all);
   const spread = Math.max(1, max - min);
-  const lo = fit ? Math.max(0, min - spread * 0.4) : 0;
-  const hi = fit ? max + spread * 0.4 : max * 1.15 || 1;
+  // Des valeurs négatives (fraîcheur) : l'échelle descend sous zéro au lieu de les couper.
+  const lo = min < 0 ? min - spread * 0.1 : fit ? Math.max(0, min - spread * 0.4) : 0;
+  const hi = min < 0 ? max + spread * 0.1 : fit ? max + spread * 0.4 : max * 1.15 || 1;
   const innerW = W - pad.left - pad.right;
   const innerH = H - pad.top - pad.bottom;
   const x = (i: number) =>

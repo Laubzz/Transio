@@ -1,23 +1,23 @@
 import {
   INTENSITY_LABEL,
   ORIGIN_LABEL,
-  SESSION_DESCRIPTION,
   buildWorkout,
   formatDuration,
+  sessionDescription,
   target,
   type Profile,
   type Session,
   type Week,
 } from "@/engine";
 import { addDays, sessionDate } from "./dates";
-import { sessionLabel } from "./labels";
+import { sessionTitle } from "./labels";
 import type { AppState } from "./state";
 
 /** Texte du détail d'une séance, pour la description de l'événement. */
 export function workoutText(profile: Profile, week: Week, s: Session): string[] {
   const w = buildWorkout(profile, week, s);
   const dur = (sec: number) => (sec % 60 === 0 ? `${sec / 60} min` : formatDuration(sec));
-  const lines = [SESSION_DESCRIPTION[s.kind], ""];
+  const lines = [sessionDescription(s), ""];
   for (const b of w.blocks) {
     const head =
       b.repeat > 1
@@ -88,7 +88,7 @@ export function buildCalendar(state: AppState, opts: CalendarOptions): string {
   for (const week of plan.weeks) {
     for (const s of week.sessions) {
       const date = sessionDate(startDate, week.index, s.day);
-      const title = `Transio · ${sessionLabel(s.kind, origin)} · ${s.durationMin} min`;
+      const title = `Transio · ${sessionTitle(s, origin)} · ${s.durationMin} min`;
       const desc = [
         `Semaine ${week.index}${week.deload ? " (allégée)" : ""} · difficulté visée ${s.targetRpe}/10`,
         ...workoutText(p, week, s),

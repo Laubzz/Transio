@@ -13,11 +13,30 @@ import {
   START_RUN_MINUTES,
   TARGET_RPE,
 } from "./rules";
-import type { Phase, Plan, Profile, Session, SessionKind, Week } from "./types";
+import type {
+  Phase,
+  Plan,
+  PlanObjective,
+  Profile,
+  Session,
+  SessionKind,
+  StrengthFocus,
+  Week,
+} from "./types";
 
 /** Arrondi aux 5 minutes inférieures (jamais au-dessus d'un plafond). */
 export const floor5 = (m: number) => Math.floor(m / 5) * 5;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+const round5 = (m: number) => Math.round(m / 5) * 5;
+
+/** Charge prévue d'une semaine : durée × difficulté visée de chaque séance. */
+export const plannedLoad = (week: Pick<Week, "sessions">) =>
+  week.sessions.reduce((a, s) => a + s.durationMin * s.targetRpe, 0);
+
+/** Minutes de course réellement prévues dans une semaine (somme des séances à impact). */
+export const runMinutesOf = (week: Pick<Week, "sessions">) =>
+  week.sessions.filter((s) => s.impact).reduce((a, s) => a + s.durationMin, 0);
 
 /** Hausse de volume autorisée à partir d'une semaine de construction. */
 export function maxIncrease(prevMinutes: number): number {
@@ -30,9 +49,57 @@ export function validateProfile(p: Profile): void {
       `La durée du plan doit être entre ${RULES.minWeeks} et ${RULES.maxWeeks} semaines.`,
     );
   }
+  const blocks = p.strengthBlocks;
+  if (blocks) {
+    const ok = (n: number) => Number.isInteger(n) && n >= 0 && n <= 3;
+    if (!ok(blocks.haut) || !ok(blocks.bas)) {
+      throw new RangeError("Chaque bloc de renforcement se travaille de 0 à 3 fois par semaine.");
+    }
+  }
+  if (strengthBlocksOf(p).length > RULES.maxStrengthPerWeek) {
+    throw new RangeError(
+      `Pas plus de ${RULES.maxStrengthPerWeek} séances de renforcement par semaine.`,
+    );
+  }
   if (p.weeklyHoursPast < 0 || p.yearsPracticed < 0) {
     throw new RangeError("Le volume et les années de pratique ne peuvent pas être négatifs.");
   }
+}
+
+/**
+ * Blocs de renforcement de la semaine, dans l'ordre où ils sont placés : le bas du corps
+ * d'abord (loin de la sortie longue), en alternant avec le haut. Sans blocs précisés,
+ * `strengthPerWeek` séances de renfo « coureur ».
+ */
+export function strengthBlocksOf(p: Profile): (StrengthFocus | undefined)[] {
+  if (!p.strengthBlocks) return Array(p.strengthPerWeek).fill(undefined);
+  let { haut, bas } = p.strengthBlocks;
+  const out: StrengthFocus[] = [];
+  while (haut > 0 || bas > 0) {
+    if (bas > 0) {
+      out.push("bas");
+      bas--;
+    }
+    if (haut > 0) {
+      out.push("haut");
+      haut--;
+    }
+  }
+  return out;
+}
+
+/** Durée estimée d'une course objectif, en minutes (loi de Riegel depuis le temps sur 5 km). */
+export function raceMinutes(p: Profile, distanceKm: number): number {
+  const min = p.reference5kSec
+    ? (p.reference5kSec * (distanceKm / 5) ** 1.06) / 60
+    : distanceKm * 6.5;
+  return Math.max(10, round5(min));
+}
+
+/** Course objectif d'une semaine (le principal d'abord s'il y en a plusieurs). */
+function raceOf(objectives: PlanObjective[] | undefined, week: number): PlanObjective | undefined {
+  const inWeek = (objectives ?? []).filter((o) => o.week === week);
+  return inWeek.find((o) => o.priority === "principal") ?? inWeek[0];
 }
 
 /** Minutes de course de la première semaine. */
@@ -65,6 +132,8 @@ export interface WeekVolume {
  * `lastBuild` est le volume de la dernière semaine de construction (ni allégée, ni test).
  * `first` impose le volume de la semaine `from` ; avec `holdAfter`, la semaine de
  * construction suivante reprend au niveau de `lastBuild` sans le dépasser.
+ * Une semaine de course objectif est affûtée (plus nettement pour un objectif principal, suivi
+ * d'une semaine de récupération) et ne compte pas dans la progression.
  */
 export function scheduleVolumes(
   profile: Profile,
@@ -72,16 +141,23 @@ export function scheduleVolumes(
   lastBuild: number,
   first?: WeekVolume,
   holdAfter = false,
+  objectives?: PlanObjective[],
 ): WeekVolume[] {
   const peak = PEAK_RUN_MINUTES[profile.goal];
   const out: WeekVolume[] = [];
   let hold = holdAfter;
   for (let w = from; w <= profile.weeks; w++) {
+    const race = raceOf(objectives, w);
     if (w === from && first) {
       out.push(first);
-      if (!first.deload) lastBuild = first.minutes;
+      if (!first.deload && !race) lastBuild = first.minutes;
     } else if (w === profile.weeks) {
       out.push({ minutes: floor5(lastBuild * RULES.taperFactor), deload: false });
+    } else if (race) {
+      const k = race.priority === "principal" ? RULES.taperFactor : RULES.secondaryRaceFactor;
+      out.push({ minutes: floor5(lastBuild * k), deload: false });
+    } else if (raceOf(objectives, w - 1)?.priority === "principal") {
+      out.push({ minutes: floor5(lastBuild * RULES.deloadFactor), deload: true });
     } else if (w % RULES.deloadEvery === 0) {
       out.push({ minutes: floor5(lastBuild * RULES.deloadFactor), deload: true });
     } else if (hold) {
@@ -137,27 +213,96 @@ export const SESSION_DESCRIPTION: Record<SessionKind, string> = {
   tempo: "Blocs à allure seuil entre un échauffement et un retour au calme",
   fractionne: "Répétitions courtes et rapides, récupération en trottinant",
   test: "Test de fin de plan sur la distance objectif",
+  objectif: "Course objectif",
   "sport-origine": "Séance facile du sport d'origine, compte dans la charge",
   renfo: "Renforcement : mollets, pieds, gainage, chaîne postérieure",
 };
 
+const STRENGTH_DESCRIPTION: Record<StrengthFocus, string> = {
+  haut: "Renforcement du haut du corps : dos, épaules, pectoraux, bras, gainage",
+  bas: "Renforcement du bas du corps : mollets, cuisses, fessiers, chaîne postérieure",
+};
+
+/** Résumé d'une séance, précisé pour le renfo par bloc et pour une course objectif. */
+export function sessionDescription(s: Session): string {
+  if (s.objective) {
+    return s.objective.priority === "principal"
+      ? `Objectif principal : ${s.objective.label} (${s.objective.distanceKm} km)`
+      : `Objectif secondaire : ${s.objective.label} (${s.objective.distanceKm} km), en préparation de ${s.objective.prepFor ?? "ton objectif principal"}`;
+  }
+  if (s.kind !== "renfo") return s.description || SESSION_DESCRIPTION[s.kind];
+  const base = s.focus ? STRENGTH_DESCRIPTION[s.focus] : SESSION_DESCRIPTION.renfo;
+  return s.mobility ? `${base}, puis 10 min de mobilité` : base;
+}
+
+/** Séances de course d'une semaine de course objectif : la course, entourée de footings courts. */
+function raceWeekRuns(profile: Profile, volume: WeekVolume, race: PlanObjective): Session[] {
+  const n = profile.runDaysPerWeek;
+  const principal = race.priority === "principal";
+  const raceMin = raceMinutes(profile, race.distanceKm);
+  const others = RUN_DAYS[n].slice(0, n - 1).filter((d) => d !== race.day);
+  const each = clamp(floor5((volume.minutes - raceMin) / Math.max(1, others.length)), 20, 40);
+  const easy = (day: number): Session => {
+    const eve = day === race.day - 1;
+    const after = day > race.day;
+    return {
+      day,
+      kind: "endurance",
+      durationMin: eve ? 20 : after ? Math.min(each, 30) : each,
+      targetRpe: TARGET_RPE.endurance,
+      impact: true,
+      description: SESSION_DESCRIPTION.endurance,
+      ...(eve
+        ? { note: `Déblocage court la veille de ${race.label} : 20 min faciles.` }
+        : after
+          ? { note: `Récupération après ${race.label} : très facile.` }
+          : {}),
+    };
+  };
+  const { week: _week, day, ...objective } = race;
+  void _week;
+  return [
+    ...others.map(easy),
+    {
+      day,
+      kind: "objectif",
+      durationMin: raceMin,
+      targetRpe: principal ? TARGET_RPE.objectif : TARGET_RPE.objectif - 1,
+      impact: true,
+      description: SESSION_DESCRIPTION.objectif,
+      objective,
+    },
+  ];
+}
+
 /** Construit les séances d'une semaine à partir de son volume de course. */
-export function buildWeek(profile: Profile, index: number, volume: WeekVolume): Week {
+export function buildWeek(
+  profile: Profile,
+  index: number,
+  volume: WeekVolume,
+  objectives?: PlanObjective[],
+): Week {
   const phase = phaseOf(index, profile.weeks);
   const n = profile.runDaysPerWeek;
+  const race = raceOf(objectives, index);
   const kinds = runKinds(profile, index, phase, volume.deload);
   const durations = splitRun(volume.minutes, n);
-  const runDays = RUN_DAYS[n];
-  const sessions: Session[] = kinds.map((kind, i) => ({
-    day: runDays[i],
-    kind,
-    durationMin: durations[i],
-    targetRpe: TARGET_RPE[kind],
-    impact: true,
-    description: SESSION_DESCRIPTION[kind],
-  }));
+  const runDays = race ? [...RUN_DAYS[n].slice(0, n - 1), race.day] : RUN_DAYS[n];
+  const sessions: Session[] = race
+    ? raceWeekRuns(profile, volume, race)
+    : kinds.map((kind, i) => ({
+        day: runDays[i],
+        kind,
+        durationMin: durations[i],
+        targetRpe: TARGET_RPE[kind],
+        impact: true,
+        description: SESSION_DESCRIPTION[kind],
+      }));
 
-  const free = [0, 1, 2, 3, 4, 5, 6].filter((d) => !runDays.includes(d));
+  // La veille d'une course objectif reste libre de renfo et de sport d'origine.
+  const free = [0, 1, 2, 3, 4, 5, 6].filter(
+    (d) => !runDays.includes(d) && !(race && d === race.day - 1),
+  );
   const lighten = volume.deload || phase === "test" ? RULES.deloadFactor : 1;
   if (profile.keepOriginSport && profile.originSport !== "reprise" && free.length) {
     const base = clamp(profile.weeklyHoursPast * 60 * 0.25, 45, 120);
@@ -170,18 +315,74 @@ export function buildWeek(profile: Profile, index: number, volume: WeekVolume): 
       description: `${ORIGIN_LABEL[profile.originSport]} : ${SESSION_DESCRIPTION["sport-origine"]}`,
     });
   }
-  for (let i = 0; i < profile.strengthPerWeek && free.length; i++) {
-    sessions.push({
+  for (const focus of strengthBlocksOf(profile)) {
+    if (!free.length) break;
+    const s: Session = {
       day: free.shift()!,
       kind: "renfo",
-      durationMin: floor5(40 * lighten),
+      durationMin: floor5((40 + (profile.mobility ? 10 : 0)) * lighten),
       targetRpe: TARGET_RPE.renfo,
       impact: false,
       description: SESSION_DESCRIPTION.renfo,
-    });
+      ...(focus ? { focus } : {}),
+      ...(profile.mobility ? { mobility: true } : {}),
+    };
+    sessions.push({ ...s, description: sessionDescription(s) });
   }
   sessions.sort((a, b) => a.day - b.day);
-  return { index, phase, deload: volume.deload, runMinutes: volume.minutes, sessions };
+  return {
+    index,
+    phase,
+    deload: volume.deload,
+    runMinutes: volume.minutes,
+    sessions,
+    ...(race ? { objective: race.priority } : {}),
+  };
+}
+
+/** Volume de la dernière semaine de construction jusqu'à `upTo` inclus. */
+export function lastBuildUpTo(plan: Plan, upTo: number): number {
+  const builds = plan.weeks.filter(
+    (w) => w.index <= upTo && !w.deload && w.phase !== "test" && !w.objective,
+  );
+  return builds.length ? builds[builds.length - 1].runMinutes : plan.weeks[0].runMinutes;
+}
+
+/**
+ * Reconstruit une semaine avec un nouveau volume. Une semaine modifiée à la main garde ses
+ * séances : seules les durées de course suivent le nouveau volume.
+ */
+function rebuildWeek(plan: Plan, old: Week | undefined, index: number, v: WeekVolume): Week {
+  if (!old?.edited || raceOf(plan.objectives, index) || old.objective) {
+    return buildWeek(plan.profile, index, v, plan.objectives);
+  }
+  const ratio = old.runMinutes > 0 ? v.minutes / old.runMinutes : 1;
+  return {
+    ...old,
+    deload: v.deload,
+    runMinutes: v.minutes,
+    sessions: old.sessions.map((s) =>
+      s.impact ? { ...s, durationMin: Math.max(10, round5(s.durationMin * ratio)) } : s,
+    ),
+  };
+}
+
+/** Recalcule les volumes à partir de la semaine `from` et reconstruit les semaines concernées. */
+export function rebuildFrom(
+  plan: Plan,
+  from: number,
+  lastBuild: number,
+  first?: WeekVolume,
+  holdAfter = false,
+): Plan {
+  const volumes = scheduleVolumes(plan.profile, from, lastBuild, first, holdAfter, plan.objectives);
+  return {
+    ...plan,
+    weeks: [
+      ...plan.weeks.slice(0, from - 1),
+      ...volumes.map((v, i) => rebuildWeek(plan, plan.weeks[from - 1 + i], from + i, v)),
+    ],
+  };
 }
 
 /** Génère le plan complet à partir du questionnaire de départ. */

@@ -2,18 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import {
-  GOAL_LABEL,
-  ORIGIN_LABEL,
-  formatDuration,
-  parseDuration,
-  type Goal,
-  type StrengthPlace,
-} from "@/engine";
+import { GOAL_LABEL, ORIGIN_LABEL, formatDuration, parseDuration, type Goal } from "@/engine";
 import { addDays, daysBetween, formatLong, mondayOf, nextMonday } from "@/lib/dates";
 import { GOAL_HINT } from "@/lib/labels";
+import { applyObjectives } from "@/lib/objectives";
 import { planEnd, resumeMinutes, startNextCycle } from "@/lib/state";
 import { saveState, useAppState, useToday } from "@/lib/store";
+import { StrengthQuestions, maxStrength, type StrengthChoice } from "./StrengthQuestions";
 import { Button, ButtonLink, Card, Kicker, OptionCard, Segmented } from "./ui";
 
 const GOALS = Object.keys(GOAL_LABEL) as Goal[];
@@ -33,8 +28,7 @@ export function NextCycle() {
   const [goal, setGoal] = useState<Goal | null>(null);
   const [weeks, setWeeks] = useState(12);
   const [runDays, setRunDays] = useState<2 | 3 | 4 | null>(null);
-  const [strength, setStrength] = useState<0 | 1 | 2 | null>(null);
-  const [place, setPlace] = useState<StrengthPlace | null>(null);
+  const [strength, setStrength] = useState<StrengthChoice | null>(null);
   const [keepOrigin, setKeepOrigin] = useState<boolean | null>(null);
   const [ref5k, setRef5k] = useState<string | null>(null);
   if (!state || !today || !prev) return null;
@@ -47,22 +41,31 @@ export function NextCycle() {
   const refSec = refText.trim() ? parseDuration(refText) : undefined;
   const refOk = refSec !== null && (refSec === undefined || (refSec >= 12 * 60 && refSec <= 3600));
   const days = runDays ?? (g === "semi" ? Math.max(3, prev.runDaysPerWeek) : prev.runDaysPerWeek);
-  const str = strength ?? prev.strengthPerWeek;
+  const str: StrengthChoice = strength ?? {
+    haut: prev.strengthBlocks?.haut ?? 0,
+    bas: prev.strengthBlocks?.bas ?? Math.min(3, prev.strengthPerWeek),
+    mobility: prev.mobility ?? false,
+    place: prev.strengthPlace ?? "maison",
+  };
+  const keeps = prev.originSport !== "reprise" && (keepOrigin ?? prev.keepOriginSport);
+  const strengthOk = str.haut + str.bas <= maxStrength(days, keeps);
   const resume = Math.max(15 * days, resumeMinutes(state.plan));
 
   const launch = () => {
-    saveState(
-      startNextCycle(state, {
-        goal: g,
-        weeks,
-        startDate: mondayOf(start),
-        runDaysPerWeek: days as 2 | 3 | 4,
-        strengthPerWeek: str,
-        strengthPlace: place ?? prev.strengthPlace,
-        keepOriginSport: keepOrigin ?? prev.keepOriginSport,
-        reference5kSec: refSec ?? undefined,
-      }),
-    );
+    const next = startNextCycle(state, {
+      goal: g,
+      weeks,
+      startDate: mondayOf(start),
+      runDaysPerWeek: days as 2 | 3 | 4,
+      strengthPerWeek: str.haut + str.bas,
+      strengthBlocks: { haut: str.haut, bas: str.bas },
+      mobility: str.mobility,
+      strengthPlace: str.place,
+      keepOriginSport: keeps,
+      reference5kSec: refSec ?? undefined,
+    });
+    // Les objectifs déjà saisis qui tombent dans le nouveau cycle y sont placés.
+    saveState(applyObjectives(next, today));
     router.push("/aujourdhui");
   };
 
@@ -104,24 +107,6 @@ export function NextCycle() {
         onChange={(v) => setRunDays(v as 2 | 3 | 4)}
         options={[2, 3, 4].map((n) => ({ value: n, label: String(n) }))}
       />
-      <Segmented
-        label="Séances de renforcement"
-        value={str}
-        onChange={(v) => setStrength(v as 0 | 1 | 2)}
-        options={[0, 1, 2].map((n) => ({ value: n, label: String(n) }))}
-      />
-      {str > 0 && (
-        <Segmented
-          label="Où ?"
-          value={place ?? prev.strengthPlace ?? "maison"}
-          onChange={setPlace}
-          options={[
-            { value: "maison", label: "À la maison" },
-            { value: "salle", label: "En salle de muscu" },
-            { value: "les-deux", label: "Les deux" },
-          ]}
-        />
-      )}
       {prev.originSport !== "reprise" && (
         <Segmented
           label={`Garder une séance de ${ORIGIN_LABEL[prev.originSport].toLowerCase()} ?`}
@@ -133,6 +118,8 @@ export function NextCycle() {
           ]}
         />
       )}
+
+      <StrengthQuestions value={str} onChange={setStrength} max={maxStrength(days, keeps)} />
 
       <label className="block">
         <span className="mb-2 block text-sm font-semibold">
@@ -159,7 +146,7 @@ export function NextCycle() {
           Ton plan actuel et tes retours restent dans ton journal et tes records.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={launch} disabled={!refOk}>
+          <Button onClick={launch} disabled={!refOk || !strengthOk}>
             Lancer la suite
           </Button>
           <ButtonLink href="/aujourdhui" variant="ghost">

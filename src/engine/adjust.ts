@@ -1,4 +1,4 @@
-import { buildWeek, floor5, scheduleVolumes, type WeekVolume } from "./plan";
+import { floor5, lastBuildUpTo, rebuildFrom, type WeekVolume } from "./plan";
 import { RULES } from "./rules";
 import type { Decision, Plan, Week, WeekFeedback } from "./types";
 
@@ -53,12 +53,6 @@ export function decide(
   };
 }
 
-/** Volume de la dernière semaine de construction jusqu'à `upTo` inclus. */
-function lastBuildUpTo(plan: Plan, upTo: number): number {
-  const builds = plan.weeks.filter((w) => w.index <= upTo && !w.deload && w.phase !== "test");
-  return builds.length ? builds[builds.length - 1].runMinutes : plan.weeks[0].runMinutes;
-}
-
 const SEVERITY: Record<Decision, number> = { progresser: 0, maintenir: 1, alleger: 2 };
 
 /**
@@ -88,14 +82,9 @@ export function adjustPlan(
   if (decision === "alleger") {
     first = { minutes: floor5(week.runMinutes * RULES.painDeloadFactor), deload: !nextIsTest };
     hold = true;
-  } else if (!plan.weeks[next - 1].deload && !nextIsTest) {
+  } else if (!plan.weeks[next - 1].deload && !nextIsTest && !plan.weeks[next - 1].objective) {
     first = { minutes: lastBuild, deload: false };
   }
 
-  const volumes = scheduleVolumes(plan.profile, next, lastBuild, first, hold);
-  const weeks = [
-    ...plan.weeks.slice(0, week.index),
-    ...volumes.map((v, i) => buildWeek(plan.profile, next + i, v)),
-  ];
-  return { decision, reasons, plan: { ...plan, weeks } };
+  return { decision, reasons, plan: rebuildFrom(plan, next, lastBuild, first, hold) };
 }

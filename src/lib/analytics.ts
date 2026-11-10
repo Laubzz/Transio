@@ -1,4 +1,12 @@
-import { acuteChronicRatio, dailyLoads, monotony, ratioZone, type DoneSession } from "@/engine";
+import {
+  acuteChronicRatio,
+  dailyLoads,
+  monotony,
+  plannedLoad,
+  ratioZone,
+  runMinutesOf,
+  type DoneSession,
+} from "@/engine";
 import { position, sessionDate, type ISODate } from "./dates";
 import { cycles, feedbackKey, type AppState, type StrengthSet } from "./state";
 
@@ -62,11 +70,11 @@ export function weeklyStats(state: AppState, today: ISODate): WeekStats[] {
     const sunday = sessionDate(state.startDate, w.index, 6);
     return {
       planned: w.sessions.length,
-      plannedLoad: w.sessions.reduce((a, s) => a + s.durationMin * s.targetRpe, 0),
+      plannedLoad: plannedLoad(w),
       strain: mono !== null ? Math.round(load * mono) : null,
       free: (state.freeSessions ?? []).filter((f) => f.date >= monday && f.date <= sunday).length,
       weekIndex: w.index,
-      plannedRun: w.runMinutes,
+      plannedRun: runMinutesOf(w),
       doneRun: done.filter((s) => s.impact).reduce((a, s) => a + s.durationMin, 0),
       load,
       due: w.sessions.filter((s) => sessionDate(state.startDate, w.index, s.day) <= today).length,

@@ -1,4 +1,4 @@
-import type { Goal, InjuryZone, OriginSport, Phase, SessionKind } from "@/engine";
+import type { Goal, InjuryZone, OriginSport, Phase, Session, SessionKind } from "@/engine";
 
 export const DAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
@@ -16,6 +16,7 @@ export const KIND_LABEL: Record<SessionKind, string> = {
   tempo: "Tempo",
   fractionne: "Fractionné",
   test: "Test",
+  objectif: "Objectif",
   "sport-origine": "Sport d'origine",
   renfo: "Renfo",
 };
@@ -64,6 +65,15 @@ export function sessionLabel(kind: SessionKind, originLabel: string): string {
   return kind === "sport-origine" ? originLabel : KIND_LABEL[kind];
 }
 
+/** Titre d'une séance : bloc de renfo travaillé, nom de la course objectif. */
+export function sessionTitle(s: Session, originLabel: string): string {
+  if (s.objective) return s.objective.label;
+  if (s.kind === "renfo" && s.focus) {
+    return s.focus === "haut" ? "Renfo haut du corps" : "Renfo bas du corps";
+  }
+  return sessionLabel(s.kind, originLabel);
+}
+
 /** Couleur de chaque type de séance (calendrier, légende). */
 export const KIND_COLOR: Record<SessionKind, string> = {
   "course-marche": "#7fd3b5",
@@ -72,6 +82,7 @@ export const KIND_COLOR: Record<SessionKind, string> = {
   tempo: "#ff7a45",
   fractionne: "#ff8fae",
   test: "#ff4d6d",
+  objectif: "#ffd166",
   "sport-origine": "#f2c744",
   renfo: "#a493ff",
 };

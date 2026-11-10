@@ -2,8 +2,10 @@ import {
   adjustPlan,
   generatePlan,
   type Decision,
+  type ObjectivePriority,
   type Plan,
   type Profile,
+  type Session,
   type SessionFeedback,
   type WeekFeedback,
 } from "@/engine";
@@ -44,6 +46,34 @@ export interface StoredFeedback extends SessionFeedback {
   activityId?: number;
   /** Séance non réalisée : pourquoi et ce qui a été fait du plan. */
   missed?: MissedInfo;
+  /** Adaptation de la suite du plan faite automatiquement après ce retour. */
+  adapt?: Adaptation;
+}
+
+/** Ce que l'analyse d'un retour a changé dans les séances suivantes. */
+export interface Adaptation {
+  text: string;
+  changes: AdaptChange[];
+}
+
+export interface AdaptChange {
+  week: number;
+  day: number;
+  /** Minutes ajoutées (positif) ou retirées (négatif). */
+  deltaMin: number;
+  /** Type de séance avant l'adaptation, quand une séance intense est devenue facile. */
+  fromKind?: Session["kind"];
+  /** Note posée sur la séance : sert à vérifier qu'elle n'a pas changé depuis. */
+  note: string;
+}
+
+/** Course visée : objectif principal, ou secondaire (préparation du prochain principal). */
+export interface Objective {
+  id: string;
+  date: ISODate;
+  label: string;
+  distanceKm: number;
+  priority: ObjectivePriority;
 }
 
 /** Séance faite hors plan. */
@@ -124,6 +154,8 @@ export interface AppState {
   freeSessions?: FreeSession[];
   metrics?: Record<ISODate, WeekMetrics>;
   periods?: Period[];
+  /** Courses visées, principales et secondaires. */
+  objectives?: Objective[];
 }
 
 /** Un cycle terminé, gardé pour le journal et les records. */
@@ -254,6 +286,7 @@ export function normalizeState(value: unknown): AppState | null {
     freeSessions: s.freeSessions ?? [],
     metrics: s.metrics ?? {},
     periods: s.periods ?? [],
+    objectives: s.objectives ?? [],
   };
 }
 
@@ -375,13 +408,15 @@ export interface NextCycleChoice {
   runDaysPerWeek: Profile["runDaysPerWeek"];
   strengthPerWeek: Profile["strengthPerWeek"];
   strengthPlace?: Profile["strengthPlace"];
+  strengthBlocks?: Profile["strengthBlocks"];
+  mobility?: boolean;
   keepOriginSport: boolean;
   reference5kSec?: number;
 }
 
 /** Volume de course de reprise : 90 % de la dernière semaine de construction du cycle. */
 export function resumeMinutes(plan: Plan): number {
-  const builds = plan.weeks.filter((w) => !w.deload && w.phase !== "test");
+  const builds = plan.weeks.filter((w) => !w.deload && w.phase !== "test" && !w.objective);
   const last = builds.at(-1)?.runMinutes ?? plan.weeks[0].runMinutes;
   return Math.floor((last * 0.9) / 5) * 5;
 }
@@ -399,6 +434,8 @@ export function startNextCycle(state: AppState, choice: NextCycleChoice): AppSta
     runDaysPerWeek: choice.runDaysPerWeek,
     strengthPerWeek: choice.strengthPerWeek,
     strengthPlace: choice.strengthPlace ?? prev.strengthPlace,
+    strengthBlocks: choice.strengthBlocks ?? prev.strengthBlocks,
+    mobility: choice.mobility ?? prev.mobility,
     keepOriginSport: choice.keepOriginSport,
     reference5kSec: choice.reference5kSec ?? prev.reference5kSec,
     cycle: (prev.cycle ?? 1) + 1,
@@ -417,6 +454,7 @@ export function startNextCycle(state: AppState, choice: NextCycleChoice): AppSta
     freeSessions: state.freeSessions,
     metrics: state.metrics,
     periods: state.periods,
+    objectives: state.objectives,
     history: [...(state.history ?? []), archived],
   };
 }

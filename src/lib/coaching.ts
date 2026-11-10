@@ -51,14 +51,14 @@ const LIGHTEN: Partial<Record<MissCause, number>> = { fatigue: 0.2, maladie: 0.3
 const round5 = (m: number) => Math.max(5, Math.round(m / 5) * 5);
 const EASY = new Set(["endurance", "sortie-longue", "course-marche"]);
 
-interface Slot {
+export interface Slot {
   weekIndex: number;
   session: Session;
   date: ISODate;
 }
 
 /** Séances prévues après une date (dans l'ordre), éventuellement filtrées. */
-function upcoming(state: AppState, after: ISODate, pred?: (s: Session) => boolean): Slot[] {
+export function upcoming(state: AppState, after: ISODate, pred?: (s: Session) => boolean): Slot[] {
   return state.plan.weeks
     .flatMap((w) =>
       w.sessions.map((s) => ({
