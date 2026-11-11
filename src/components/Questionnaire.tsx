@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
@@ -12,10 +13,10 @@ import {
   formatDuration,
   parseDuration,
 } from "@/engine";
-import { daysBetween, mondayOf, nextMonday } from "@/lib/dates";
+import { daysBetween, mondayOf, nextMonday, type ISODate } from "@/lib/dates";
 import { GOAL_HINT, INJURY_LABEL, ORIGIN_HINT } from "@/lib/labels";
 import { applyObjectives } from "@/lib/objectives";
-import { recentRunMinutes, restartState } from "@/lib/state";
+import { recentRunMinutes, restartState, type AppState } from "@/lib/state";
 import { saveState, useAppState, useToday } from "@/lib/store";
 import { useAccount } from "@/lib/sync";
 import { StrengthQuestions, maxStrength, type StrengthChoice } from "./StrengthQuestions";
@@ -30,32 +31,23 @@ const WEEKS = [8, 10, 12, 16, 20];
 const inputClass =
   "w-full rounded-lg border border-white/10 bg-night px-3 py-2.5 focus:border-ink focus:outline-none";
 
-/** Questionnaire de départ en 4 étapes ; génère et enregistre le plan à la fin. */
+/**
+ * Questionnaire de départ en 4 étapes ; génère et enregistre le plan à la fin. Attend que le
+ * compte soit chargé, puis repart des réponses du plan en cours s'il y en a un.
+ */
 export function Questionnaire() {
-  const router = useRouter();
   const today = useToday();
   const existing = useAppState();
-  const [step, setStep] = useState(0);
-  const [origin, setOrigin] = useState<OriginSport>("velo");
-  const [years, setYears] = useState(3);
-  const [hours, setHours] = useState(6);
-  const [running, setRunning] = useState<number | null>(null);
-  const [injuries, setInjuries] = useState<Partial<Record<InjuryZone, number>>>({});
-  const [goal, setGoal] = useState<Goal>("10k");
-  const [weeks, setWeeks] = useState(12);
-  const [start, setStart] = useState<string | null>(null);
-  const [runDays, setRunDays] = useState<2 | 3 | 4>(3);
-  const [keepOrigin, setKeepOrigin] = useState(true);
-  const [strength, setStrength] = useState<StrengthChoice>({
-    haut: 0,
-    bas: 1,
-    mobility: false,
-    place: "maison",
-  });
-  const [ref5k, setRef5k] = useState("");
   const account = useAccount();
 
-  if (!today || account.auth === "loading") return null;
+  if (
+    !today ||
+    existing === undefined ||
+    account.auth === "loading" ||
+    account.sync === "loading"
+  ) {
+    return null;
+  }
   if (account.auth === "signed-out") {
     return (
       <div className="mx-auto w-full max-w-md px-4 py-16 text-center">
@@ -72,6 +64,34 @@ export function Questionnaire() {
       </div>
     );
   }
+  return <QuestionnaireForm today={today} existing={existing} />;
+}
+
+function QuestionnaireForm({ today, existing }: { today: ISODate; existing: AppState | null }) {
+  const router = useRouter();
+  // Dernières réponses gardées : le formulaire repart du profil du plan en cours.
+  const p = existing?.plan.profile;
+  const [step, setStep] = useState(0);
+  const [origin, setOrigin] = useState<OriginSport>(p?.originSport ?? "velo");
+  const [years, setYears] = useState(p?.yearsPracticed ?? 3);
+  const [hours, setHours] = useState(p?.weeklyHoursPast ?? 6);
+  const [running, setRunning] = useState<number | null>(p?.currentRunMinutes ?? null);
+  const [injuries, setInjuries] = useState<Partial<Record<InjuryZone, number>>>(
+    Object.fromEntries((p?.injuries ?? []).map((i) => [i.zone, i.year])),
+  );
+  const [goal, setGoal] = useState<Goal>(p?.goal ?? "10k");
+  const [weeks, setWeeks] = useState(p?.weeks ?? 12);
+  const [start, setStart] = useState<string | null>(null);
+  const [runDays, setRunDays] = useState<2 | 3 | 4>(p?.runDaysPerWeek ?? 3);
+  const [keepOrigin, setKeepOrigin] = useState(p?.keepOriginSport ?? true);
+  const [strength, setStrength] = useState<StrengthChoice>({
+    haut: p?.strengthBlocks?.haut ?? 0,
+    bas: p?.strengthBlocks?.bas ?? (p ? p.strengthPerWeek : 1),
+    mobility: p?.mobility ?? false,
+    place: p?.strengthPlace ?? "maison",
+  });
+  const [ref5k, setRef5k] = useState(p?.reference5kSec ? formatDuration(p.reference5kSec) : "");
+
   const ref5kSec = ref5k.trim() ? parseDuration(ref5k) : undefined;
   const ref5kOk =
     ref5kSec !== null && (ref5kSec === undefined || (ref5kSec >= 12 * 60 && ref5kSec <= 60 * 60));
@@ -121,6 +141,14 @@ export function Questionnaire() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8">
+      {existing && (
+        <Link
+          href="/aujourdhui"
+          className="mb-6 inline-block text-sm text-ink underline underline-offset-2"
+        >
+          ← Revenir à mon plan sans rien changer
+        </Link>
+      )}
       {existing && step === 0 && (
         <p className="mb-6 rounded-lg border border-origin/40 bg-origin/10 p-4 text-sm">
           Tu as déjà un plan. En générant un nouveau plan, l&apos;actuel et tes retours seront
