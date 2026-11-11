@@ -85,9 +85,13 @@ describe("generatePlan", () => {
 });
 
 describe("startMinutes", () => {
+  // 2 sorties : le minimum (30 + 40 min) laisse voir l'effet du sport d'origine et des blessures.
+  const twoRuns: Profile = { ...VELO_TO_10K, runDaysPerWeek: 2 };
+
   it("part plus bas après une blessure du membre inférieur", () => {
-    const hurt: Profile = { ...VELO_TO_10K, injuries: [{ zone: "genou", year: 2024 }] };
-    expect(startMinutes(hurt)).toBeLessThan(startMinutes(VELO_TO_10K));
+    const sportCo: Profile = { ...twoRuns, originSport: "sport-co" };
+    const hurt: Profile = { ...sportCo, injuries: [{ zone: "genou", year: 2024 }] };
+    expect(startMinutes(hurt)).toBeLessThan(startMinutes(sportCo));
   });
 
   it("ne réduit pas pour une blessure hors membre inférieur", () => {
@@ -96,9 +100,27 @@ describe("startMinutes", () => {
   });
 
   it("part plus haut pour un sport collectif, déjà habitué aux impacts", () => {
-    expect(startMinutes({ ...VELO_TO_10K, originSport: "sport-co" })).toBeGreaterThan(
-      startMinutes(VELO_TO_10K),
+    expect(startMinutes({ ...twoRuns, originSport: "sport-co" })).toBeGreaterThan(
+      startMinutes(twoRuns),
     );
+  });
+
+  it("ne descend jamais sous 30 min par sortie et 40 min de sortie longue", () => {
+    for (const runDaysPerWeek of [2, 3, 4] as const) {
+      const hurt: Profile = {
+        ...VELO_TO_10K,
+        originSport: "natation",
+        weeklyHoursPast: 1,
+        runDaysPerWeek,
+        injuries: [{ zone: "genou", year: 2024 }],
+      };
+      for (const w of generatePlan(hurt).weeks) {
+        const runs = w.sessions.filter((s) => s.impact);
+        const long = runs.find((s) => s.kind === "sortie-longue" || s.kind === "test")!;
+        expect(Math.min(...runs.map((s) => s.durationMin))).toBeGreaterThanOrEqual(30);
+        expect(long.durationMin).toBeGreaterThanOrEqual(40);
+      }
+    }
   });
 });
 
