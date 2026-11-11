@@ -31,7 +31,7 @@ export function ObjectivesCard({ state, today }: { state: AppState; today: ISODa
   const list = state.objectives ?? [];
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-card p-5">
+    <section className="rounded-lg border border-white/10 bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold">Tes objectifs</h2>
@@ -58,7 +58,7 @@ export function ObjectivesCard({ state, today }: { state: AppState; today: ISODa
                     <span
                       className={`mr-2 rounded-full border px-2 py-0.5 text-xs ${
                         o.priority === "principal"
-                          ? "border-[#a16207]/60 text-[#a16207]"
+                          ? "border-[#b98a00]/60 text-[#b98a00]"
                           : "border-white/20 text-muted"
                       }`}
                     >
@@ -98,7 +98,7 @@ export function ObjectivesCard({ state, today }: { state: AppState; today: ISODa
 
       {message && (
         <p
-          className="mt-4 rounded-xl border border-target/40 bg-target/10 p-3 text-sm"
+          className="mt-4 rounded-lg border border-target/40 bg-target/10 p-3 text-sm"
           role="status"
         >
           {message}

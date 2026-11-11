@@ -179,7 +179,7 @@ export function FeedbackForm({
           )}
         </>
       ) : (
-        <div className="space-y-4 rounded-xl border border-dashed border-origin/50 p-4">
+        <div className="space-y-4 rounded-lg border border-dashed border-origin/50 p-4">
           <Segmented
             label="Pourquoi ?"
             value={cause ?? ("" as MissCause)}

@@ -25,7 +25,7 @@ const fr = (n: number, d = 2) => n.toFixed(d).replace(".", ",");
 function Badge({ children, tone = "ok" }: { children: React.ReactNode; tone?: "ok" | "warn" }) {
   return (
     <span
-      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+      className={`rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${
         tone === "warn" ? "bg-origin/10 text-origin" : "bg-target/10 text-target"
       }`}
     >
@@ -60,12 +60,12 @@ function Tile({
   badge?: React.ReactNode;
 }) {
   return (
-    <Card className="flex flex-col gap-1">
+    <Card className="flex flex-col gap-1 border-t-[3px] border-t-ink">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm text-muted">{label}</p>
         {badge}
       </div>
-      <p className="text-3xl font-extrabold tabular-nums">
+      <p className="font-serif text-[1.375rem] font-normal tabular-nums">
         {value}
         {unit && <span className="text-sm font-semibold text-muted"> {unit}</span>}
       </p>
@@ -75,9 +75,9 @@ function Tile({
 }
 
 const RING = [
-  { key: "low", label: "Faible intensité", color: "#c6f24e" },
-  { key: "mid", label: "Modérée", color: "#f08a5d" },
-  { key: "high", label: "Haute intensité", color: "#7b7fb5" },
+  { key: "low", label: "Faible intensité", color: "#2e9e66" },
+  { key: "mid", label: "Modérée", color: "#e0603a" },
+  { key: "high", label: "Haute intensité", color: "#4f5bd5" },
 ] as const;
 
 /** Anneau de répartition du temps par intensité ressentie. */
@@ -100,7 +100,7 @@ function IntensityRing({ data }: { data: Record<"low" | "mid" | "high", number> 
             : "Pas encore de séance notée"
         }
       >
-        <circle cx="70" cy="70" r={R} fill="none" stroke="#e8e9e1" strokeWidth="14" />
+        <circle cx="70" cy="70" r={R} fill="none" stroke="var(--color-card-2)" strokeWidth="14" />
         {total > 0 &&
           RING.map((r) => {
             const len = (data[r.key] / total) * C;
@@ -121,7 +121,7 @@ function IntensityRing({ data }: { data: Record<"low" | "mid" | "high", number> 
             offset += len;
             return el;
           })}
-        <text x="70" y="70" textAnchor="middle" className="fill-ink text-lg font-extrabold">
+        <text x="70" y="70" textAnchor="middle" className="fill-ink text-lg font-serif font-normal">
           {hm(total)}
         </text>
         <text x="70" y="86" textAnchor="middle" className="fill-muted text-[9px]">
@@ -145,7 +145,7 @@ function IntensityRing({ data }: { data: Record<"low" | "mid" | "high", number> 
         ))}
       </ul>
       {total > 0 && (
-        <p className="mt-4 rounded-xl bg-target/10 p-3 text-xs">
+        <p className="mt-4 rounded-lg bg-target/10 p-3 text-xs">
           {data.low / total >= 0.5
             ? "Bonne répartition : une majorité de temps facile favorise une progression durable."
             : "Peu de temps facile : garde tes footings vraiment lents pour mieux récupérer."}
@@ -245,7 +245,7 @@ export function Overview({ state, today }: { state: AppState; today: ISODate }) 
                 : "Charge de chaque jour (durée × difficulté ressentie)."
             }
             rows={o.series.map((d) => ({ label: d.label, values: { load: d.load } }))}
-            series={[{ key: "load", label: "Charge réelle", color: "#7cb518" }]}
+            series={[{ key: "load", label: "Charge réelle", color: "#2e9e66" }]}
           />
         </div>
         <IntensityRing data={o.intensity} />
@@ -277,7 +277,7 @@ export function Overview({ state, today }: { state: AppState; today: ISODate }) 
                   label="Distance"
                   value={r.activity?.distanceM ? `${fr(r.activity.distanceM / 1000, 1)} km` : "–"}
                 />
-                <Stat label="Charge" value={`${r.durationMin * r.rpe} UA`} accent />
+                <Stat label="Charge" value={`${r.durationMin * r.rpe} UA`} />
               </li>
             ))}
           </ul>
@@ -289,11 +289,11 @@ export function Overview({ state, today }: { state: AppState; today: ISODate }) 
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <p>
       <span className="block text-xs text-muted">{label}</span>
-      <span className={`font-semibold tabular-nums ${accent ? "text-target" : ""}`}>{value}</span>
+      <span className="font-serif text-base tabular-nums">{value}</span>
     </p>
   );
 }

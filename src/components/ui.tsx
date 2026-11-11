@@ -2,11 +2,11 @@ import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold transition " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-target disabled:opacity-40";
+  "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40";
 const VARIANT = {
   primary: "bg-ink text-night hover:bg-ink/85",
-  ghost: "border border-white/15 text-ink hover:bg-white/5",
+  ghost: "border border-white/10 bg-night text-ink hover:bg-card-2",
   danger: "border border-warn/40 text-warn hover:bg-warn/10",
 };
 type Variant = keyof typeof VARIANT;
@@ -41,7 +41,7 @@ export function Segmented<T extends string | number>({
 }) {
   return (
     <fieldset>
-      <legend className="mb-2 text-sm font-semibold">{label}</legend>
+      <legend className="mb-2 text-xs text-muted">{label}</legend>
       <div className="flex flex-wrap gap-2">
         {options.map((o) => {
           const active = o.value === value;
@@ -50,15 +50,15 @@ export function Segmented<T extends string | number>({
               ? "border-warn bg-warn/15 text-warn"
               : o.tone === "origin"
                 ? "border-origin bg-origin/15 text-origin"
-                : "border-target bg-target/15 text-target";
+                : "border-ink bg-ink text-night";
           return (
             <button
               key={String(o.value)}
               type="button"
               aria-pressed={active}
               onClick={() => onChange(o.value)}
-              className={`min-w-14 rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                active ? tone : "border-white/15 text-muted hover:text-ink"
+              className={`min-w-9 rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                active ? tone : "border-white/10 bg-night text-ink hover:bg-card-2"
               }`}
             >
               {o.label}
@@ -89,11 +89,13 @@ export function OptionCard({
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`w-full rounded-2xl border p-4 text-left transition ${
-        selected ? "border-target bg-target/10" : "border-white/10 bg-card hover:border-white/25"
+      className={`w-full rounded-lg border p-4 text-left transition ${
+        selected
+          ? "border-ink bg-card shadow-[inset_0_0_0_1px_var(--color-ink)]"
+          : "border-white/10 bg-card hover:border-white/25"
       }`}
     >
-      <span className="flex items-center gap-2 font-semibold">
+      <span className="flex items-center gap-2 font-medium">
         {title}
         {badge && (
           <span className="rounded-full bg-origin/15 px-2 py-0.5 text-xs text-origin">{badge}</span>
@@ -106,10 +108,26 @@ export function OptionCard({
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-white/10 bg-card p-5 ${className}`}>{children}</div>
+    <div className={`rounded-lg border border-white/10 bg-card p-5 ${className}`}>{children}</div>
   );
 }
 
+/** Petite ligne de contexte au-dessus d'un titre. */
 export function Kicker({ children }: { children: ReactNode }) {
-  return <p className="font-mono text-xs tracking-[0.25em] text-target uppercase">{children}</p>;
+  return <p className="text-xs text-muted">{children}</p>;
+}
+
+/** Logo : carré noir au T blanc, puis le nom en serif. */
+export function Logo({ className = "", href = "/" }: { className?: string; href?: string }) {
+  return (
+    <Link href={href} className={`flex items-center gap-3 font-serif text-[1.375rem] ${className}`}>
+      <span
+        aria-hidden
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-[22%] bg-ink font-serif text-xl text-night"
+      >
+        T
+      </span>
+      Transio
+    </Link>
+  );
 }

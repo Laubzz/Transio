@@ -5,7 +5,7 @@ import { sessionDescription, type Session } from "@/engine";
 import { formatLong, type ISODate } from "@/lib/dates";
 import { MISS_ACTION_LABEL, MISS_CAUSE_LABEL, SENSATION_LABEL, recordMissed } from "@/lib/coaching";
 import { autoReview, submitFeedback } from "@/lib/adapt";
-import { KIND_LABEL, RPE_LABEL, sessionTitle } from "@/lib/labels";
+import { KIND_COLOR, KIND_LABEL, RPE_LABEL, sessionTitle } from "@/lib/labels";
 import { feedbackKey, isReviewed, matchActivity, recordFeedback, type AppState } from "@/lib/state";
 import { saveState } from "@/lib/store";
 import { FeedbackForm } from "./FeedbackForm";
@@ -28,10 +28,10 @@ export function sessionStatus(
 }
 
 export const STATUS_STYLE: Record<SessionStatus, { label: string; className: string }> = {
-  "a-venir": { label: "À venir", className: "text-muted border-white/15" },
+  "a-venir": { label: "À venir", className: "text-muted border-white/10" },
   "a-noter": { label: "À noter", className: "text-origin border-origin/50" },
   faite: { label: "Faite", className: "text-target border-target/50" },
-  "pas-faite": { label: "Pas faite", className: "text-muted border-white/15 line-through" },
+  "pas-faite": { label: "Pas faite", className: "text-muted border-white/10 line-through" },
 };
 
 export function StatusBadge({ status }: { status: SessionStatus }) {
@@ -82,12 +82,15 @@ export function SessionPanel({
 
   return (
     <article
-      className={`overflow-hidden rounded-2xl border ${hero ? "border-transparent" : "border-white/10 bg-card"}`}
+      className={`overflow-hidden rounded-lg ${hero ? "border-t-4 border-ink bg-card" : "border border-white/10 bg-card"}`}
     >
-      <div className={hero ? "dark-panel p-5" : "p-4"}>
+      <div className={hero ? "p-5" : "p-4"}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className={`font-mono text-xs tracking-[0.2em] uppercase ${"text-muted"}`}>
+            <p
+              className="text-xs font-medium tracking-[0.04em] uppercase"
+              style={{ color: KIND_COLOR[session.kind] }}
+            >
               {session.kind === "sport-origine"
                 ? KIND_LABEL[session.kind]
                 : session.impact
@@ -95,7 +98,7 @@ export function SessionPanel({
                   : "Renfo"}
               {!hero && ` · ${formatLong(date)}`}
             </p>
-            <h3 className={`mt-1 font-extrabold ${hero ? "text-2xl" : "text-lg"}`}>
+            <h3 className={`mt-1 font-serif font-normal ${hero ? "text-2xl" : "text-lg"}`}>
               {sessionTitle(session, originLabel)}
             </h3>
           </div>
@@ -107,7 +110,7 @@ export function SessionPanel({
         <p className={`mt-2 text-sm ${"text-muted"}`}>{sessionDescription(session)}</p>
         {session.note && (
           <p
-            className={`mt-2 rounded-lg px-2 py-1 text-xs font-semibold ${hero ? "bg-white/10 text-ink" : "bg-origin/10 text-origin"}`}
+            className={`mt-2 rounded-lg px-2 py-1 text-xs font-semibold ${"bg-origin/10 text-origin"}`}
           >
             {session.note}
           </p>
@@ -116,7 +119,7 @@ export function SessionPanel({
 
       <details
         open={hero}
-        className={`group ${hero ? "border-x border-white/10 bg-card px-5 py-4" : "border-t border-white/10 px-4 py-3"}`}
+        className={`group ${hero ? "border-t border-white/10 bg-card px-5 py-4" : "border-t border-white/10 px-4 py-3"}`}
       >
         <summary className="cursor-pointer text-sm font-semibold text-muted hover:text-ink">
           Détail de la séance

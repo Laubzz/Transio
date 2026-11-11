@@ -83,7 +83,7 @@ export function Profile() {
     <div className="space-y-6">
       <header>
         <Kicker>Profil</Kicker>
-        <h1 className="mt-2 text-3xl font-extrabold">Ton profil</h1>
+        <h1 className="mt-2 font-serif text-[1.375rem] font-normal">Ton profil</h1>
       </header>
 
       <Card>
@@ -182,7 +182,7 @@ function PaceCard({ state }: { state: AppState }) {
             onChange={(e) => setText(e.target.value)}
             placeholder="27:30"
             inputMode="numeric"
-            className="w-28 rounded-xl border border-white/15 bg-night px-3 py-2 focus:border-target focus:outline-none"
+            className="w-28 rounded-lg border border-white/10 bg-night px-3 py-2 focus:border-ink focus:outline-none"
           />
         </label>
         <Button type="submit" variant="ghost" className="px-4 py-2">
@@ -201,7 +201,7 @@ function PaceCard({ state }: { state: AppState }) {
           <button
             type="button"
             onClick={() => apply(estimate)}
-            className="font-semibold text-target hover:underline"
+            className="font-medium text-ink underline underline-offset-2 hover:no-underline"
           >
             Utiliser cette estimation
           </button>
@@ -212,7 +212,7 @@ function PaceCard({ state }: { state: AppState }) {
           {(["endurance", "seuil", "vma", "objectif"] as const).map((k) => {
             const r = k === "objectif" ? pc.objectif : pc[k];
             return (
-              <div key={k} className="rounded-xl bg-night/60 p-3">
+              <div key={k} className="rounded-lg bg-night/60 p-3">
                 <dt className="text-xs text-muted">{INTENSITY_LABEL[k]}</dt>
                 <dd className="font-semibold tabular-nums">
                   {r ? formatPaceRange(r) : "à l'effort"}
@@ -416,7 +416,7 @@ function PeriodsCard({ state }: { state: AppState }) {
   const [error, setError] = useState<string | null>(null);
   const periods = state.periods ?? [];
   const input =
-    "w-full rounded-xl border border-white/15 bg-night px-3 py-2 text-sm focus:border-target focus:outline-none [color-scheme:light]";
+    "w-full rounded-lg border border-white/10 bg-night px-3 py-2 text-sm focus:border-ink focus:outline-none [color-scheme:light]";
   return (
     <Card>
       <h2 className="font-semibold">Tes périodes</h2>

@@ -148,7 +148,7 @@ export function FreeSessionCard({ state, fs }: { state: AppState; fs: FreeSessio
   const [editing, setEditing] = useState(false);
   const activity = (state.activities ?? []).find((a) => a.id === fs.activityId);
   return (
-    <article className="rounded-2xl border border-dashed border-white/20 bg-card p-4">
+    <article className="rounded-lg border border-dashed border-white/20 bg-card p-4">
       {editing ? (
         <FreeSessionForm
           state={state}
@@ -159,10 +159,8 @@ export function FreeSessionCard({ state, fs }: { state: AppState; fs: FreeSessio
       ) : (
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="text-sm">
-            <p className="font-mono text-xs tracking-[0.2em] text-muted uppercase">
-              Séance libre · {formatLong(fs.date)}
-            </p>
-            <p className="mt-1 text-lg font-extrabold">{FREE_SPORT_LABEL[fs.sport]}</p>
+            <p className="text-xs text-muted">Séance libre · {formatLong(fs.date)}</p>
+            <p className="mt-1 text-lg font-serif font-normal">{FREE_SPORT_LABEL[fs.sport]}</p>
             <p>
               {fs.durationMin} min · {fs.rpe}/10
               {fs.sensation && ` · ${SENSATION_LABEL[fs.sensation].toLowerCase()}`}
@@ -201,7 +199,7 @@ export function AddFreeSession({
 }) {
   const [open, setOpen] = useState(false);
   return open ? (
-    <div className="rounded-2xl border border-white/10 bg-card p-4">
+    <div className="rounded-lg border border-white/10 bg-card p-4">
       <h3 className="mb-4 font-semibold">Nouvelle séance libre</h3>
       <FreeSessionForm state={state} date={date} onDone={() => setOpen(false)} />
     </div>
@@ -209,7 +207,7 @@ export function AddFreeSession({
     <button
       type="button"
       onClick={() => setOpen(true)}
-      className="w-full rounded-2xl border border-dashed border-white/20 px-4 py-3 text-sm font-semibold text-muted hover:border-white/40 hover:text-ink"
+      className="w-full rounded-lg border border-dashed border-white/20 px-4 py-3 text-sm font-semibold text-muted hover:border-white/40 hover:text-ink"
     >
       {label}
     </button>

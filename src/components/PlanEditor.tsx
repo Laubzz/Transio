@@ -75,7 +75,7 @@ export function SessionActions({
   const days = freeDays(state, toWeek, today);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-card p-4">
+    <div className="rounded-lg border border-white/10 bg-card p-4">
       <h3 className="font-semibold">Modifier cette séance</h3>
       <p className="mt-1 text-sm text-muted">
         La charge de la semaine et les courbes de forme sont recalculées après chaque changement.
@@ -194,7 +194,7 @@ export function AddPlannedForm({
 
   return (
     <form
-      className="space-y-4 rounded-2xl border border-white/10 bg-card p-4"
+      className="space-y-4 rounded-lg border border-white/10 bg-card p-4"
       onSubmit={(e) => {
         e.preventDefault();
         run(

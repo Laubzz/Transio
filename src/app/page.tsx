@@ -1,3 +1,4 @@
+import { Logo } from "@/components/ui";
 import { HomeCta } from "@/components/HomeCta";
 
 const FEATURES = [
@@ -18,14 +19,11 @@ const FEATURES = [
 export default function Home() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-4 py-16 sm:px-6">
-      <p className="mb-4 font-mono text-xs tracking-[0.3em] text-target">VERSION BÊTA</p>
-      <h1 className="text-5xl font-extrabold tracking-tight sm:text-7xl">
-        Trans
-        <span className="bg-gradient-to-r from-origin to-target bg-clip-text text-transparent">
-          io
-        </span>
+      <p className="mb-4 text-xs text-muted">Version bêta</p>
+      <h1>
+        <Logo className="text-5xl sm:text-6xl [&>span]:h-16 [&>span]:w-16 [&>span]:text-4xl" />
       </h1>
-      <p className="mt-5 max-w-xl text-xl text-muted">
+      <p className="mt-5 max-w-xl text-lg text-muted">
         Change de sport, garde tes acquis. Le coach de transition pour passer du vélo à la course à
         pied sans brûler les étapes.
       </p>
@@ -35,7 +33,7 @@ export default function Home() {
 
       <ul className="mt-16 grid gap-4 sm:grid-cols-3">
         {FEATURES.map((f) => (
-          <li key={f.title} className="rounded-2xl border border-white/10 bg-card p-5">
+          <li key={f.title} className="rounded-lg border border-white/10 bg-card p-5">
             <h2 className="font-semibold">{f.title}</h2>
             <p className="mt-2 text-sm text-muted">{f.text}</p>
           </li>

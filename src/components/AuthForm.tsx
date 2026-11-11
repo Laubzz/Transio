@@ -6,10 +6,10 @@ import { useEffect, useState } from "react";
 import { readState } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import { authErrorMessage, endRecovery, useAccount } from "@/lib/sync";
-import { Button, Kicker } from "./ui";
+import { Button, Kicker, Logo } from "./ui";
 
 const INPUT =
-  "w-full rounded-xl border border-white/15 bg-night px-3 py-2.5 focus:border-target focus:outline-none";
+  "w-full rounded-lg border border-white/10 bg-night px-3 py-2.5 focus:border-ink focus:outline-none";
 
 function Shell({
   kicker,
@@ -22,14 +22,9 @@ function Shell({
 }) {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-12">
-      <Link href="/" className="mb-10 text-2xl font-extrabold tracking-tight">
-        Trans
-        <span className="bg-gradient-to-r from-origin to-target bg-clip-text text-transparent">
-          io
-        </span>
-      </Link>
+      <Logo className="mb-10" />
       <Kicker>{kicker}</Kicker>
-      <h1 className="mt-2 mb-6 text-3xl font-extrabold">{title}</h1>
+      <h1 className="mt-2 mb-6 font-serif text-[1.375rem] font-normal">{title}</h1>
       {children}
     </main>
   );
@@ -88,7 +83,10 @@ export function AuthForm({ mode }: { mode: "connexion" | "inscription" }) {
           Un lien de confirmation a été envoyé à <strong className="text-ink">{email}</strong>.
           Clique dessus pour activer ton compte, puis connecte-toi.
         </p>
-        <Link href="/connexion" className="mt-6 font-semibold text-target hover:underline">
+        <Link
+          href="/connexion"
+          className="mt-6 font-medium text-ink underline underline-offset-2 hover:no-underline"
+        >
           Aller à la connexion
         </Link>
       </Shell>
@@ -138,7 +136,10 @@ export function AuthForm({ mode }: { mode: "connexion" | "inscription" }) {
         {signup ? (
           <p>
             Déjà un compte ?{" "}
-            <Link href="/connexion" className="font-semibold text-target hover:underline">
+            <Link
+              href="/connexion"
+              className="font-medium text-ink underline underline-offset-2 hover:no-underline"
+            >
               Se connecter
             </Link>
           </p>
@@ -146,7 +147,10 @@ export function AuthForm({ mode }: { mode: "connexion" | "inscription" }) {
           <>
             <p>
               Pas encore de compte ?{" "}
-              <Link href="/inscription" className="font-semibold text-target hover:underline">
+              <Link
+                href="/inscription"
+                className="font-medium text-ink underline underline-offset-2 hover:no-underline"
+              >
                 Créer un compte
               </Link>
             </p>
@@ -249,7 +253,10 @@ export function PasswordReset() {
           </Button>
         </form>
       )}
-      <Link href="/connexion" className="mt-6 text-sm font-semibold text-target hover:underline">
+      <Link
+        href="/connexion"
+        className="mt-6 text-sm font-medium text-ink underline underline-offset-2 hover:no-underline"
+      >
         Retour à la connexion
       </Link>
     </Shell>

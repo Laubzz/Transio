@@ -42,7 +42,7 @@ export function BarChart({
   const hasRef = data.some((d) => d.reference !== undefined);
 
   return (
-    <figure className="rounded-2xl border border-white/10 bg-card p-4">
+    <figure className="rounded-lg border border-white/10 bg-card p-4">
       <figcaption className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
         <span className="font-semibold">{title}</span>
         {hasRef && (
@@ -77,7 +77,7 @@ export function BarChart({
                 textAnchor="end"
                 dominantBaseline="middle"
                 fontSize={11}
-                fill="#8c96b3"
+                fill="var(--color-muted)"
               >
                 {Math.round(t)}
               </text>
@@ -92,7 +92,7 @@ export function BarChart({
                   <path
                     d={barPath(x, y(d.reference), barW, y(0))}
                     fill="none"
-                    stroke="#8c96b3"
+                    stroke="var(--color-muted)"
                     strokeOpacity={0.6}
                     strokeWidth={1}
                   />
@@ -100,7 +100,7 @@ export function BarChart({
                 {d.value > 0 && (
                   <path
                     d={barPath(x + 2, y(d.value), barW - 4, y(0))}
-                    fill="#7cb518"
+                    fill="#2e9e66"
                     opacity={hover === null || hover === i ? 1 : 0.45}
                   />
                 )}
@@ -109,7 +109,7 @@ export function BarChart({
                   y={H - 10}
                   textAnchor="middle"
                   fontSize={11}
-                  fill={hover === i ? "#1a1c18" : "#8c96b3"}
+                  fill={hover === i ? "var(--color-ink)" : "var(--color-muted)"}
                 >
                   {d.label}
                 </text>
@@ -131,7 +131,7 @@ export function BarChart({
         {hover !== null && (
           <div
             role="status"
-            className="pointer-events-none absolute top-0 rounded-lg border border-white/15 bg-night px-3 py-2 text-xs shadow-lg"
+            className="pointer-events-none absolute top-0 rounded-lg border border-white/10 bg-night px-3 py-2 text-xs shadow-lg"
             style={{
               left: `${((pad.left + band * hover + band / 2) / W) * 100}%`,
               transform: `translateX(${hover > data.length / 2 ? "-100%" : "0"})`,

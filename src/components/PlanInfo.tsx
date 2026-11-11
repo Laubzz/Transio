@@ -29,7 +29,7 @@ export function PlanFramework({ state }: { state: AppState }) {
     })
     .filter((r) => r.n > 0);
   return (
-    <details className="rounded-2xl border border-white/10 bg-card">
+    <details className="rounded-lg border border-white/10 bg-card">
       <summary className="cursor-pointer px-5 py-4 font-semibold">
         Les phases et les règles du cadre
       </summary>
@@ -67,7 +67,7 @@ export function QualitySessions({ state, today }: { state: AppState; today: ISOD
   if (!rows.length) return null;
   const dur = (sec: number) => (sec % 60 === 0 ? `${sec / 60} min` : formatDuration(sec));
   return (
-    <details className="rounded-2xl border border-white/10 bg-card">
+    <details className="rounded-lg border border-white/10 bg-card">
       <summary className="cursor-pointer px-5 py-4 font-semibold">
         Détail des séances de qualité
       </summary>
@@ -85,7 +85,7 @@ export function QualitySessions({ state, today }: { state: AppState; today: ISOD
             {rows.map(({ w, s, date }) => (
               <tr
                 key={date}
-                className={`border-t border-white/5 align-top ${w.index === current ? "bg-target/10" : ""}`}
+                className={`border-t border-white/5 align-top ${w.index === current ? "bg-ink/10" : ""}`}
               >
                 <td className="px-3 py-2 whitespace-nowrap">
                   S{w.index} · {formatShort(date)}

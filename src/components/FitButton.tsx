@@ -22,7 +22,7 @@ export function FitButton({
     <button
       type="button"
       disabled={busy}
-      className="mt-3 text-sm font-semibold text-target hover:underline disabled:opacity-50"
+      className="mt-3 text-sm font-medium text-ink underline underline-offset-2 hover:no-underline disabled:opacity-50"
       onClick={async () => {
         setBusy(true);
         // Chargé à la demande : le SDK FIT est volumineux.

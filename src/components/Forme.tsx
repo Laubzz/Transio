@@ -28,7 +28,7 @@ const FIELDS: {
     max: 90,
     step: 1,
     better: "up",
-    color: "#7cb518",
+    color: "#2e9e66",
   },
   {
     key: "hrv",
@@ -38,7 +38,7 @@ const FIELDS: {
     max: 250,
     step: 1,
     better: "up",
-    color: "#4fb6f0",
+    color: "#0a84c6",
   },
   {
     key: "restingHr",
@@ -48,7 +48,7 @@ const FIELDS: {
     max: 100,
     step: 1,
     better: "down",
-    color: "#ff7a45",
+    color: "#e0603a",
   },
   {
     key: "sleepH",
@@ -58,7 +58,7 @@ const FIELDS: {
     max: 12,
     step: 0.1,
     better: "up",
-    color: "#a493ff",
+    color: "#4f5bd5",
   },
   {
     key: "maxHr",
@@ -68,7 +68,7 @@ const FIELDS: {
     max: 230,
     step: 1,
     better: null,
-    color: "#ff8fae",
+    color: "#d6577a",
   },
 ];
 
@@ -173,7 +173,7 @@ export function Forme({ state, today }: { state: AppState; today: ISODate }) {
           </div>
         </form>
         {alert && (
-          <ul className="mt-4 space-y-1 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-warn">
+          <ul className="mt-4 space-y-1 rounded-lg border border-warn/40 bg-warn/10 p-3 text-sm text-warn">
             {alert.map((a) => (
               <li key={a}>{a}</li>
             ))}
@@ -205,7 +205,7 @@ export function Forme({ state, today }: { state: AppState; today: ISODate }) {
 }
 
 const INPUT =
-  "w-full rounded-xl border border-white/15 bg-night px-3 py-2 text-sm focus:border-target focus:outline-none";
+  "w-full rounded-lg border border-white/10 bg-night px-3 py-2 text-sm focus:border-ink focus:outline-none";
 
 function toForm(m: WeekMetrics | undefined): Record<string, string> {
   if (!m) return {};

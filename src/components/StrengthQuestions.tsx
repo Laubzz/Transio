@@ -42,7 +42,7 @@ export function StrengthQuestions({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold">Musculation et renforcement</h2>
+        <h2 className="text-lg font-semibold">Musculation et renforcement</h2>
         <p className="mt-1 text-sm text-muted">
           Choisis combien de fois par semaine tu veux travailler chaque bloc. Par exemple : 2 fois
           le haut du corps et 1 fois le bas.

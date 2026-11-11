@@ -15,8 +15,8 @@ const DECISION: Record<Decision, { title: string; className: string }> = {
 export function ReviewResult({ review }: { review: WeekReview }) {
   const d = DECISION[review.decision];
   return (
-    <div className={`rounded-2xl border p-4 ${d.className}`}>
-      <p className="font-bold">
+    <div className={`rounded-lg border p-4 ${d.className}`}>
+      <p className="font-semibold">
         Bilan semaine {review.weekIndex} : {d.title}
       </p>
       <ul className="mt-2 space-y-1 text-sm">
@@ -31,9 +31,9 @@ export function ReviewResult({ review }: { review: WeekReview }) {
 /** Invitation à faire le bilan d'une semaine terminée. */
 export function ReviewPrompt({ state, weekIndex }: { state: AppState; weekIndex: number }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-origin/40 bg-origin/10 p-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-origin/40 bg-origin/10 p-4">
       <div>
-        <p className="font-bold">La semaine {weekIndex} est terminée</p>
+        <p className="font-semibold">La semaine {weekIndex} est terminée</p>
         <p className="text-sm text-muted">
           Le bilan ajuste la suite du plan d&apos;après tes retours. Les séances non notées comptent
           comme non faites.

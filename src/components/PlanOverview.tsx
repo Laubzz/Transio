@@ -50,14 +50,14 @@ export function WeeksOverview({
               type="button"
               onClick={() => onPick(w.index)}
               aria-current={w.index === currentWeek ? "true" : undefined}
-              className={`grid w-full grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 rounded-2xl border p-3 text-left transition hover:bg-card-2 sm:grid-cols-[9rem_1fr_auto] ${
-                w.index === currentWeek ? "border-target/60 bg-target/5" : "border-white/10 bg-card"
+              className={`grid w-full grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 rounded-lg border p-3 text-left transition hover:bg-card-2 sm:grid-cols-[9rem_1fr_auto] ${
+                w.index === currentWeek ? "border-2 border-ink bg-ink/5" : "border-white/10 bg-card"
               }`}
             >
               <span>
-                <span className="block font-bold">
+                <span className="block font-semibold">
                   Semaine {w.index}
-                  {w.index === currentWeek && <span className="text-target"> · en cours</span>}
+                  {w.index === currentWeek && <span className="text-ink"> · en cours</span>}
                 </span>
                 <span className="block text-xs text-muted">
                   {formatShort(monday)} – {formatShort(addDays(monday, 6))}
@@ -163,7 +163,9 @@ export function MonthOverview({
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold first-letter:uppercase">{monthLabel(month)}</h2>
+          <h2 className="text-[0.9375rem] font-medium first-letter:uppercase">
+            {monthLabel(month)}
+          </h2>
           <p className="text-sm text-muted tabular-nums">
             {[
               monthSessions.length &&
@@ -213,7 +215,7 @@ export function MonthOverview({
               const body = (
                 <>
                   <span
-                    className={`text-xs tabular-nums ${date === today ? "font-bold text-target" : "text-muted"}`}
+                    className={`text-xs tabular-nums ${date === today ? "font-semibold text-ink" : "text-muted"}`}
                   >
                     {Number(date.slice(8))}
                   </span>
@@ -259,7 +261,7 @@ export function MonthOverview({
                     .map((g) => (
                       <span
                         key={g.id}
-                        className="block truncate text-[10px] text-[#a16207] sm:text-xs"
+                        className="block truncate text-[10px] text-[#b98a00] sm:text-xs"
                       >
                         ★ {g.label}
                       </span>
@@ -267,7 +269,7 @@ export function MonthOverview({
                 </>
               );
               const cls = `flex min-h-16 flex-col gap-0.5 rounded-lg border p-1 text-left ${
-                date === today ? "border-target/60" : "border-white/10"
+                date === today ? "border-2 border-ink" : "border-white/10"
               } ${outside ? "opacity-35" : ""}`;
               return slot ? (
                 <button

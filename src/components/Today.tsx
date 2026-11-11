@@ -32,7 +32,7 @@ export function Today() {
       <div className="space-y-6">
         <header>
           <Kicker>Bientôt</Kicker>
-          <h1 className="mt-2 text-3xl font-extrabold">
+          <h1 className="mt-2 font-serif text-[1.375rem] font-normal">
             Ton plan commence {formatLong(startDate)}
           </h1>
           <p className="mt-2 text-muted">
@@ -65,7 +65,7 @@ export function Today() {
       <div className="space-y-6">
         <header>
           <Kicker>Plan terminé</Kicker>
-          <h1 className="mt-2 text-3xl font-extrabold">
+          <h1 className="mt-2 font-serif text-[1.375rem] font-normal">
             {cycle === 1 ? "Bravo, la transition est faite" : "Bravo, objectif bouclé"}
           </h1>
           <p className="mt-2 text-muted">
@@ -96,7 +96,7 @@ export function Today() {
           Semaine {week.index} · {PHASE_LABEL[week.phase]}
           {week.deload && " · allégée"}
         </Kicker>
-        <h1 className="mt-2 text-3xl font-extrabold">Bonjour,</h1>
+        <h1 className="mt-2 font-serif text-[1.375rem] font-normal">Bonjour,</h1>
         <p className="mt-1 text-muted">Voici l&apos;état de ton entraînement aujourd&apos;hui.</p>
         <p className="mt-1 text-muted first-letter:uppercase">
           {formatLong(today)}
@@ -113,7 +113,7 @@ export function Today() {
       {goal && (
         <Link
           href="/calendrier"
-          className="block rounded-2xl border border-[#a16207]/40 bg-[#a16207]/10 p-4 text-sm hover:bg-[#a16207]/15"
+          className="block rounded-lg border border-[#b98a00]/40 bg-[#b98a00]/10 p-4 text-sm hover:bg-[#b98a00]/15"
         >
           <strong>
             ★ {goal.label}{" "}
@@ -149,7 +149,7 @@ export function Today() {
         ))
       ) : (
         <Card>
-          <h2 className="text-xl font-bold">Jour de repos</h2>
+          <h2 className="text-[0.9375rem] font-medium">Jour de repos</h2>
           <p className="mt-1 text-muted">
             La progression se fait aussi pendant la récupération : marche, mobilité, sommeil.
           </p>
@@ -159,7 +159,7 @@ export function Today() {
       {toRate > 0 && (
         <Link
           href="/calendrier"
-          className="block rounded-2xl border border-origin/40 p-4 text-sm hover:bg-origin/5"
+          className="block rounded-lg border border-origin/40 p-4 text-sm hover:bg-origin/5"
         >
           <strong className="text-origin">
             {toRate} séance{toRate > 1 ? "s" : ""} à noter

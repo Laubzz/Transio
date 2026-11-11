@@ -19,10 +19,10 @@ import { ReviewPrompt, ReviewResult } from "./WeekReview";
 import { Button, Kicker, Segmented } from "./ui";
 
 const PHASE_COLOR = {
-  base: "bg-origin",
-  rythme: "bg-[#c9a77e]",
-  specifique: "bg-[#7fd3b5]",
-  test: "bg-target",
+  base: "bg-ink/30",
+  rythme: "bg-ink/55",
+  specifique: "bg-ink/75",
+  test: "bg-ink",
 } as const;
 
 type View = "detail" | "semaines" | "mois";
@@ -74,7 +74,7 @@ export function Planning() {
     <div className="space-y-6">
       <header>
         <Kicker>Calendrier</Kicker>
-        <h1 className="mt-2 text-3xl font-extrabold">Ton plan</h1>
+        <h1 className="mt-2 font-serif text-[1.375rem] font-normal">Ton plan</h1>
       </header>
 
       <Segmented
@@ -91,7 +91,7 @@ export function Planning() {
       {notice && (
         <p
           role="status"
-          className={`rounded-2xl border p-4 text-sm ${
+          className={`rounded-lg border p-4 text-sm ${
             notice.tone === "warn"
               ? "border-origin/40 bg-origin/10"
               : "border-target/40 bg-target/10"
@@ -132,7 +132,7 @@ export function Planning() {
                 <span
                   className={`text-[10px] tabular-nums ${
                     w.index === currentWeek && pos.status === "en-cours"
-                      ? "font-bold text-ink"
+                      ? "font-semibold text-ink"
                       : "text-muted"
                   }`}
                 >
@@ -154,13 +154,13 @@ export function Planning() {
 
           <section className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-bold">
+              <h2 className="text-[0.9375rem] font-medium">
                 Semaine {weekIndex}
                 <span className="ml-2 text-base font-normal text-muted">
                   {PHASE_LABEL[week.phase]}
                 </span>
                 {week.deload && (
-                  <span className="ml-2 rounded-full bg-target/15 px-2 py-0.5 text-xs font-medium text-target">
+                  <span className="ml-2 rounded-full bg-ink/10 px-2 py-0.5 text-xs font-medium text-ink">
                     allégée
                   </span>
                 )}
@@ -228,14 +228,12 @@ export function Planning() {
               return (
                 <li
                   key={day}
-                  className={`flex flex-col gap-2 rounded-2xl border p-2 xl:min-h-44 ${
-                    isToday ? "border-target/60 bg-target/5" : "border-white/10"
+                  className={`flex flex-col gap-2 rounded-lg border p-2 xl:min-h-44 ${
+                    isToday ? "border-2 border-ink bg-ink/5" : "border-white/10"
                   }`}
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-1 px-1 text-xs">
-                    <span
-                      className={`font-mono ${isToday ? "font-bold text-target" : "text-muted"}`}
-                    >
+                    <span className={`${isToday ? "font-semibold text-ink" : "text-muted"}`}>
                       {label} {formatShort(date)}
                     </span>
                     {period && (
@@ -247,7 +245,7 @@ export function Planning() {
                     )}
                   </div>
                   {objectivesOn(state, date).map((o) => (
-                    <p key={o.id} className="px-1 text-xs font-semibold text-[#a16207]">
+                    <p key={o.id} className="px-1 text-xs font-semibold text-[#b98a00]">
                       ★ {o.label} ·{" "}
                       {o.priority === "principal" ? "objectif principal" : "objectif secondaire"}
                     </p>
@@ -260,7 +258,7 @@ export function Planning() {
                         setPlanDay(null);
                       }}
                       aria-expanded={openDay === day}
-                      className={`flex w-full flex-col gap-1 rounded-xl border-l-4 bg-card p-2.5 text-left text-sm transition hover:bg-card-2 ${
+                      className={`flex w-full flex-col gap-1 rounded-lg border-l-4 bg-card p-2.5 text-left text-sm transition hover:bg-card-2 ${
                         openDay === day ? "ring-1 ring-ink/40" : ""
                       }`}
                       style={{ borderLeftColor: KIND_COLOR[s.kind] }}
@@ -285,7 +283,7 @@ export function Planning() {
                             setOpenDay(null);
                           }}
                           aria-expanded={planDay === day}
-                          className="rounded-lg border border-dashed border-target/40 px-2 py-1 text-xs text-target hover:bg-target/10"
+                          className="rounded-lg border border-dashed border-white/10 px-2 py-1 text-xs text-muted hover:text-ink"
                         >
                           + Programmer une séance
                         </button>
@@ -295,7 +293,7 @@ export function Planning() {
                   {frees.map((f) => (
                     <p
                       key={f.id}
-                      className="rounded-xl border border-dashed border-white/20 p-2 text-xs"
+                      className="rounded-lg border border-dashed border-white/20 p-2 text-xs"
                     >
                       <strong>Libre · {FREE_SPORT_LABEL[f.sport]}</strong>
                       <br />
@@ -305,7 +303,7 @@ export function Planning() {
                   <button
                     type="button"
                     onClick={() => setAddDay(addDay === day ? null : day)}
-                    className="mt-auto rounded-lg border border-dashed border-white/15 px-2 py-1 text-xs text-muted hover:text-ink"
+                    className="mt-auto rounded-lg border border-dashed border-white/10 px-2 py-1 text-xs text-muted hover:text-ink"
                   >
                     + Séance libre
                   </button>
@@ -348,7 +346,7 @@ export function Planning() {
             />
           )}
           {addDay !== null && (
-            <div className="rounded-2xl border border-white/10 bg-card p-4">
+            <div className="rounded-lg border border-white/10 bg-card p-4">
               <h3 className="mb-4 font-semibold">Nouvelle séance libre</h3>
               <FreeSessionForm
                 key={`${weekIndex}-${addDay}`}

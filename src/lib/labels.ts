@@ -76,13 +76,13 @@ export function sessionTitle(s: Session, originLabel: string): string {
 
 /** Couleur de chaque type de séance (calendrier, légende). */
 export const KIND_COLOR: Record<SessionKind, string> = {
-  "course-marche": "#7fd3b5",
-  endurance: "#7cb518",
-  "sortie-longue": "#4fb6f0",
-  tempo: "#ff7a45",
-  fractionne: "#ff8fae",
-  test: "#ff4d6d",
-  objectif: "#ffd166",
-  "sport-origine": "#f2c744",
-  renfo: "#a493ff",
+  "course-marche": "#7986cb",
+  endurance: "#2e9e66",
+  "sortie-longue": "#0a84c6",
+  tempo: "#e0603a",
+  fractionne: "#d6577a",
+  test: "#c9372c",
+  objectif: "#b98a00",
+  "sport-origine": "#7a7a7a",
+  renfo: "#4f5bd5",
 };
