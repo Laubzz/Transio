@@ -23,7 +23,7 @@ export function Journal() {
     <div className="space-y-6">
       <header>
         <Kicker>Journal</Kicker>
-        <h1 className="mt-2 text-3xl font-extrabold">
+        <h1 className="mt-2 font-serif text-[1.375rem] font-normal">
           {tab === "seances" ? "Tes séances" : "Tes records"}
         </h1>
       </header>
@@ -56,7 +56,9 @@ function Records({ state }: { state: AppState }) {
         <Card className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
             <p className="text-xs text-muted">Plus longue série de séances faites d&apos;affilée</p>
-            <p className="mt-1 text-3xl font-extrabold tabular-nums">{streak.count}</p>
+            <p className="mt-1 font-serif text-[1.375rem] font-normal tabular-nums">
+              {streak.count}
+            </p>
           </div>
           {streak.until && (
             <p className="text-xs text-muted">jusqu&apos;au {formatLong(streak.until)}</p>
@@ -81,14 +83,16 @@ function Records({ state }: { state: AppState }) {
                 {c.top.map((e, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <span
-                      className={`mt-0.5 w-8 shrink-0 rounded-full py-0.5 text-center text-xs font-bold ${
-                        i === 0 ? "bg-target text-night" : "bg-white/10 text-muted"
+                      className={`mt-0.5 w-8 shrink-0 rounded-full py-0.5 text-center text-xs font-semibold ${
+                        i === 0 ? "bg-ink text-night" : "bg-white/10 text-muted"
                       }`}
                     >
                       {RANK[i]}
                     </span>
                     <div className="min-w-0">
-                      <p className={`font-extrabold tabular-nums ${i === 0 ? "text-xl" : ""}`}>
+                      <p
+                        className={`font-serif font-normal tabular-nums ${i === 0 ? "text-xl" : ""}`}
+                      >
                         {e.value}
                       </p>
                       <p className="truncate text-xs text-muted">
@@ -213,14 +217,16 @@ function PersonalBests({ pbs }: { pbs: ReturnType<typeof personalBests> }) {
             type="button"
             aria-pressed={pb.name === cur.name}
             onClick={() => setSel(pb.name)}
-            className={`rounded-2xl border p-3 text-left transition ${
+            className={`rounded-lg border p-3 text-left transition ${
               pb.name === cur.name
-                ? "border-target bg-target/10"
+                ? "border-ink bg-ink/5"
                 : "border-white/10 bg-card hover:border-white/25"
             }`}
           >
             <span className="block text-xs text-muted">{pb.label}</span>
-            <span className="block text-xl font-extrabold tabular-nums">{show(pb.top[0])}</span>
+            <span className="block text-xl font-serif font-normal tabular-nums">
+              {show(pb.top[0])}
+            </span>
             <span className="block text-xs text-muted">{formatLong(pb.top[0].date)}</span>
           </button>
         ))}
@@ -231,15 +237,15 @@ function PersonalBests({ pbs }: { pbs: ReturnType<typeof personalBests> }) {
           {cur.top.map((t, i) => (
             <li
               key={t.activityId}
-              className="flex items-center gap-3 rounded-xl border border-white/10 p-3"
+              className="flex items-center gap-3 rounded-lg border border-white/10 p-3"
             >
               <span
-                className={`w-8 shrink-0 rounded-full py-0.5 text-center text-xs font-bold ${i === 0 ? "bg-target text-night" : "bg-white/10 text-muted"}`}
+                className={`w-8 shrink-0 rounded-full py-0.5 text-center text-xs font-semibold ${i === 0 ? "bg-ink text-night" : "bg-white/10 text-muted"}`}
               >
                 {RANK[i]}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-lg font-extrabold tabular-nums">{show(t)}</p>
+                <p className="text-lg font-serif font-normal tabular-nums">{show(t)}</p>
                 <p className="truncate text-xs text-muted">
                   {t.activity} · {formatLong(t.date)} ·{" "}
                   {mode === "temps" ? t.pace : formatDuration(t.timeSec)}

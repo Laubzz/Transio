@@ -38,7 +38,7 @@ export function LineChart({
     .filter((v): v is number => v != null);
   if (!all.length) {
     return (
-      <figure className="rounded-2xl border border-white/10 bg-card p-4">
+      <figure className="rounded-lg border border-white/10 bg-card p-4">
         <figcaption className="font-semibold">{title}</figcaption>
         <p className="mt-2 text-sm text-muted">{note ?? "Pas encore de données."}</p>
       </figure>
@@ -61,7 +61,7 @@ export function LineChart({
   const step = rows.length > 16 ? Math.ceil(rows.length / 12) : 1;
 
   return (
-    <figure className="rounded-2xl border border-white/10 bg-card p-4">
+    <figure className="rounded-lg border border-white/10 bg-card p-4">
       <figcaption className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
         <span className="font-semibold">{title}</span>
         {series.length > 1 && (
@@ -101,7 +101,7 @@ export function LineChart({
                 textAnchor="end"
                 dominantBaseline="middle"
                 fontSize={11}
-                fill="#8c96b3"
+                fill="var(--color-muted)"
               >
                 {fmt(t)}
               </text>
@@ -115,7 +115,7 @@ export function LineChart({
                 y={H - 8}
                 textAnchor="middle"
                 fontSize={11}
-                fill={hover === i ? "#1a1c18" : "#8c96b3"}
+                fill={hover === i ? "var(--color-ink)" : "var(--color-muted)"}
               >
                 {r.label}
               </text>
@@ -163,7 +163,7 @@ export function LineChart({
                       cx={x(i)}
                       cy={y(v)}
                       r={s.dashed ? 2.5 : 4}
-                      fill={s.dashed ? s.color : "#ffffff"}
+                      fill={s.dashed ? s.color : "var(--color-card)"}
                       stroke={s.color}
                       strokeWidth={2}
                     />
@@ -189,7 +189,7 @@ export function LineChart({
         {hover !== null && (
           <div
             role="status"
-            className="pointer-events-none absolute top-0 rounded-lg border border-white/15 bg-night px-3 py-2 text-xs shadow-lg"
+            className="pointer-events-none absolute top-0 rounded-lg border border-white/10 bg-night px-3 py-2 text-xs shadow-lg"
             style={{
               left: `${(x(hover) / W) * 100}%`,
               transform: `translateX(${hover > rows.length / 2 ? "-105%" : "5%"})`,

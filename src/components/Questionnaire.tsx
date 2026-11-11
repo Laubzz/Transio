@@ -28,7 +28,7 @@ const ZONES = Object.keys(INJURY_LABEL) as InjuryZone[];
 const WEEKS = [8, 10, 12, 16, 20];
 
 const inputClass =
-  "w-full rounded-xl border border-white/15 bg-night px-3 py-2.5 focus:border-target focus:outline-none";
+  "w-full rounded-lg border border-white/10 bg-night px-3 py-2.5 focus:border-ink focus:outline-none";
 
 /** Questionnaire de départ en 4 étapes ; génère et enregistre le plan à la fin. */
 export function Questionnaire() {
@@ -59,7 +59,7 @@ export function Questionnaire() {
   if (account.auth === "signed-out") {
     return (
       <div className="mx-auto w-full max-w-md px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold">Crée d&apos;abord ton compte</h1>
+        <h1 className="text-2xl font-semibold">Crée d&apos;abord ton compte</h1>
         <p className="mt-2 text-muted">
           Ton plan sera enregistré dans ton compte et disponible sur tous tes appareils.
         </p>
@@ -122,7 +122,7 @@ export function Questionnaire() {
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8">
       {existing && step === 0 && (
-        <p className="mb-6 rounded-2xl border border-origin/40 bg-origin/10 p-4 text-sm">
+        <p className="mb-6 rounded-lg border border-origin/40 bg-origin/10 p-4 text-sm">
           Tu as déjà un plan. En générant un nouveau plan, l&apos;actuel et tes retours seront
           remplacés. Tes activités Strava, tes objectifs et tes réglages sont gardés.
         </p>
@@ -134,14 +134,14 @@ export function Questionnaire() {
         {STEPS.map((s, i) => (
           <span
             key={s}
-            className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-gradient-to-r from-origin to-target" : "bg-white/10"}`}
+            className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-ink" : "bg-white/10"}`}
           />
         ))}
       </div>
 
       {step === 0 && (
         <section className="space-y-6">
-          <h1 className="text-3xl font-extrabold">D&apos;où viens-tu ?</h1>
+          <h1 className="font-serif text-[1.375rem] font-normal">D&apos;où viens-tu ?</h1>
           <div className="grid gap-3 sm:grid-cols-2">
             {SPORTS.map((s) => (
               <OptionCard
@@ -170,7 +170,7 @@ export function Questionnaire() {
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-semibold">
-                Heures par semaine : <span className="text-target">{hours} h</span>
+                Heures par semaine : <span className="text-ink">{hours} h</span>
               </span>
               <input
                 type="range"
@@ -209,7 +209,7 @@ export function Questionnaire() {
 
       {step === 1 && (
         <section className="space-y-6">
-          <h1 className="text-3xl font-extrabold">Des blessures passées ?</h1>
+          <h1 className="font-serif text-[1.375rem] font-normal">Des blessures passées ?</h1>
           <p className="text-muted">
             Coche les zones déjà blessées. Le plan démarre plus doucement après une blessure aux
             jambes.
@@ -224,7 +224,7 @@ export function Questionnaire() {
                 className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                   z in injuries
                     ? "border-origin bg-origin/15 text-origin"
-                    : "border-white/15 text-muted hover:text-ink"
+                    : "border-white/10 text-muted hover:text-ink"
                 }`}
               >
                 {INJURY_LABEL[z]}
@@ -254,7 +254,7 @@ export function Questionnaire() {
 
       {step === 2 && (
         <section className="space-y-6">
-          <h1 className="text-3xl font-extrabold">Ton objectif</h1>
+          <h1 className="font-serif text-[1.375rem] font-normal">Ton objectif</h1>
           <div className="grid gap-3 sm:grid-cols-3">
             {GOALS.map((g) => (
               <OptionCard
@@ -320,7 +320,7 @@ export function Questionnaire() {
 
       {step === 3 && (
         <section className="space-y-6">
-          <h1 className="text-3xl font-extrabold">Ta semaine type</h1>
+          <h1 className="font-serif text-[1.375rem] font-normal">Ta semaine type</h1>
           <Segmented
             label="Séances de course par semaine"
             value={runDays}
@@ -339,7 +339,7 @@ export function Questionnaire() {
             />
           )}
           <StrengthQuestions value={strength} onChange={setStrength} max={strengthMax} />
-          <p className="rounded-2xl border border-white/10 bg-card p-4 text-sm text-muted">
+          <p className="rounded-lg border border-white/10 bg-card p-4 text-sm text-muted">
             Transio t&apos;accompagne dans l&apos;entraînement et la progressivité. Il ne remplace
             pas un avis médical.
           </p>

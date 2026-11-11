@@ -23,10 +23,10 @@ const ADVICE_STYLE = {
 export function AdviceCard({ state }: { state: AppState }) {
   const a = advice(state);
   return (
-    <section className={`rounded-2xl border p-4 ${ADVICE_STYLE[a.level]}`}>
+    <section className={`rounded-lg border p-4 ${ADVICE_STYLE[a.level]}`}>
       <p className="text-xs text-muted">Conseil pour les prochaines séances</p>
       <p
-        className={`mt-1 font-bold ${a.level === "bad" ? "text-warn" : a.level === "warn" ? "text-origin" : a.level === "ok" ? "text-target" : ""}`}
+        className={`mt-1 font-semibold ${a.level === "bad" ? "text-warn" : a.level === "warn" ? "text-origin" : a.level === "ok" ? "text-target" : ""}`}
       >
         {a.title}
       </p>
@@ -51,18 +51,18 @@ export function LastSessionCard({ state, today }: { state: AppState; today: ISOD
   if (a?.avgHr) stats.push([`${a.avgHr}`, "FC moy."]);
   if (a?.elevationM) stats.push([`${a.elevationM} m`, "D+"]);
   return (
-    <Card className="p-4">
+    <Card className="border-l-4 border-l-ink/60 p-4">
       <p className="text-xs text-muted">
         Dernière séance · {formatLong(l.date)} (
         {ago === 0 ? "aujourd'hui" : ago === 1 ? "hier" : `il y a ${ago} jours`})
       </p>
-      <p className="mt-1 text-lg font-extrabold">{l.title}</p>
+      <p className="mt-1 text-lg font-serif font-normal">{l.title}</p>
       {stats.length > 0 && (
         <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-2">
           {stats.map(([v, k]) => (
             <div key={k}>
               <dt className="text-xs text-muted">{k}</dt>
-              <dd className="font-bold tabular-nums">{v}</dd>
+              <dd className="font-semibold tabular-nums">{v}</dd>
             </div>
           ))}
         </dl>
@@ -103,30 +103,30 @@ export function KeyTiles({ state, today }: { state: AppState; today: ISODate }) 
     .sort((a, b) => (a.date < b.date ? -1 : 1))[0];
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <Card className="p-4">
+      <Card className="border-t-[3px] border-t-ink p-4">
         <p className="text-xs text-muted">Prochaine séance</p>
         {next ? (
           <>
-            <p className="mt-1 font-bold">{sessionLabel(next.x.kind, origin)}</p>
+            <p className="mt-1 font-semibold">{sessionLabel(next.x.kind, origin)}</p>
             <p className="text-xs text-muted first-letter:uppercase">
               {formatLong(next.date)} · {next.x.durationMin} min
             </p>
           </>
         ) : (
-          <p className="mt-1 font-bold">Plan terminé</p>
+          <p className="mt-1 font-semibold">Plan terminé</p>
         )}
       </Card>
-      <Card className="p-4">
+      <Card className="border-t-[3px] border-t-ink p-4">
         <p className="text-xs text-muted">Séances faites depuis le début</p>
-        <p className="mt-1 text-2xl font-extrabold tabular-nums">
+        <p className="mt-1 font-serif text-[1.375rem] font-normal tabular-nums">
           {s.sessionsDone}
           <span className="text-base font-semibold text-muted"> / {s.sessionsDue}</span>
         </p>
         <p className="text-xs text-muted">parmi celles déjà passées</p>
       </Card>
-      <Card className="p-4">
+      <Card className="border-t-[3px] border-t-ink p-4">
         <p className="text-xs text-muted">Km courus depuis le début</p>
-        <p className="mt-1 text-2xl font-extrabold tabular-nums">
+        <p className="mt-1 font-serif text-[1.375rem] font-normal tabular-nums">
           {runs.kmSinceStart.toString().replace(".", ",")}
         </p>
         <p className="text-xs text-muted">d&apos;après Strava</p>

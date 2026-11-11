@@ -54,7 +54,7 @@ export function Analyses() {
     <div className="space-y-6">
       <header>
         <Kicker>Analyses</Kicker>
-        <h1 className="mt-2 text-3xl font-extrabold">Ta progression</h1>
+        <h1 className="mt-2 font-serif text-[1.375rem] font-normal">Ta progression</h1>
         <p className="mt-1 text-muted">
           Calculé à partir de tes retours de séance (durée × difficulté ressentie) et de tes
           activités Strava.
@@ -119,9 +119,9 @@ function FormChart({
         values: { fitness: w.fitness, fatigue: w.fatigue, form: w.form },
       }))}
       series={[
-        { key: "fitness", label: "Condition", color: "#7cb518" },
-        { key: "fatigue", label: "Fatigue", color: "#ff7a45" },
-        { key: "form", label: "Fraîcheur", color: "#4fb6f0", dashed: true },
+        { key: "fitness", label: "Condition", color: "#2e9e66" },
+        { key: "fatigue", label: "Fatigue", color: "#e0603a" },
+        { key: "form", label: "Fraîcheur", color: "#0a84c6", dashed: true },
       ]}
     />
   );
@@ -223,7 +223,7 @@ function Charge({ state, today }: { state: AppState; today: ISODate }) {
             strain: w.strain,
           },
         }))}
-        series={[{ key: "mono", label: "Monotonie", color: "#4fb6f0" }]}
+        series={[{ key: "mono", label: "Monotonie", color: "#0a84c6" }]}
       />
     </>
   );
@@ -267,7 +267,7 @@ function Courses({ state }: { state: AppState }) {
         />
       </div>
 
-      <section className="rounded-2xl border border-white/10 bg-card p-4">
+      <section className="rounded-lg border border-white/10 bg-card p-4">
         <h2 className="font-semibold">Course par course</h2>
         <p className="mt-1 text-xs text-muted">
           Tes courses Strava rapprochées du plan. Le verdict compare l&apos;allure des sorties
@@ -327,7 +327,7 @@ function Courses({ state }: { state: AppState }) {
         fit
         note="Vitesse ÷ FC moyenne sur tes sorties faciles. Si ça monte, tu cours plus vite pour le même effort : ta base progresse."
         rows={m.map((w) => ({ label: `S${w.weekIndex}`, values: { ef: w.efficiency } }))}
-        series={[{ key: "ef", label: "Efficacité", color: "#7cb518" }]}
+        series={[{ key: "ef", label: "Efficacité", color: "#2e9e66" }]}
       />
       <LineChart
         title="Cadence (pas par minute)"
@@ -335,7 +335,7 @@ function Courses({ state }: { state: AppState }) {
         fit
         note="Sous 165, la foulée est souvent trop longue et charge tibias et genoux ; vise 170 à 180 en footing, sans forcer."
         rows={m.map((w) => ({ label: `S${w.weekIndex}`, values: { cad: w.cadence } }))}
-        series={[{ key: "cad", label: "Cadence", color: "#4fb6f0" }]}
+        series={[{ key: "cad", label: "Cadence", color: "#0a84c6" }]}
       />
       <BarChart
         title="Répartition facile / intense (minutes)"
@@ -383,7 +383,7 @@ function Force({ state }: { state: AppState }) {
         <select
           value={cur.exercise}
           onChange={(e) => setPicked(e.target.value)}
-          className="w-full rounded-xl border border-white/15 bg-night px-3 py-2 text-sm focus:border-target focus:outline-none"
+          className="w-full rounded-lg border border-white/10 bg-night px-3 py-2 text-sm focus:border-ink focus:outline-none"
         >
           {series.map((x) => (
             <option key={x.exercise} value={x.exercise}>
@@ -403,7 +403,7 @@ function Force({ state }: { state: AppState }) {
         fit
         note="Charge maximale théorique sur une répétition, estimée à partir de tes séries (formule d'Epley : charge × (1 + reps ÷ 30))."
         rows={cur.points.map((p) => ({ label: formatShort(p.date), values: { rm: p.oneRm } }))}
-        series={[{ key: "rm", label: "1RM estimé", color: "#a493ff" }]}
+        series={[{ key: "rm", label: "1RM estimé", color: "#4f5bd5" }]}
       />
     </>
   );
@@ -421,9 +421,9 @@ function Tile({
   hintClass?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-card p-4">
+    <div className="rounded-lg border border-white/10 border-t-[3px] border-t-ink bg-card p-4">
       <p className="text-xs text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-extrabold tabular-nums">{value}</p>
+      <p className="mt-1 font-serif text-[1.375rem] font-normal tabular-nums">{value}</p>
       <p className={`mt-0.5 text-xs ${hintClass}`}>{hint}</p>
     </div>
   );

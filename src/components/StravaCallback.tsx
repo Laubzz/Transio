@@ -39,22 +39,28 @@ export function StravaCallback() {
       <Kicker>Strava</Kicker>
       {error ? (
         <>
-          <h1 className="mt-2 text-2xl font-bold">La connexion n&apos;a pas abouti</h1>
+          <h1 className="mt-2 text-2xl font-semibold">La connexion n&apos;a pas abouti</h1>
           <p className="mt-2 text-warn">{error}</p>
-          <Link href="/profil" className="mt-6 font-semibold text-target hover:underline">
+          <Link
+            href="/profil"
+            className="mt-6 font-medium text-ink underline underline-offset-2 hover:no-underline"
+          >
             Retour au profil
           </Link>
         </>
       ) : account.auth === "signed-out" ? (
         <>
-          <h1 className="mt-2 text-2xl font-bold">Connecte-toi d&apos;abord</h1>
-          <Link href="/connexion" className="mt-6 font-semibold text-target hover:underline">
+          <h1 className="mt-2 text-2xl font-semibold">Connecte-toi d&apos;abord</h1>
+          <Link
+            href="/connexion"
+            className="mt-6 font-medium text-ink underline underline-offset-2 hover:no-underline"
+          >
             Se connecter
           </Link>
         </>
       ) : (
         <>
-          <h1 className="mt-2 text-2xl font-bold">Import de tout ton historique Strava…</h1>
+          <h1 className="mt-2 text-2xl font-semibold">Import de tout ton historique Strava…</h1>
           <p className="mt-2 text-muted">
             {progress ?? "Connexion à Strava…"} Garde cette page ouverte, ça peut prendre une
             minute.

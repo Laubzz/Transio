@@ -14,10 +14,10 @@ import { activityPace } from "@/lib/strava";
 
 const DOT: Record<RunBlock["intensity"], string> = {
   marche: "bg-muted",
-  endurance: "bg-target",
-  seuil: "bg-[#c9a77e]",
-  vma: "bg-origin",
-  objectif: "bg-warn",
+  endurance: "bg-[#2e9e66]",
+  seuil: "bg-[#e0603a]",
+  vma: "bg-[#d6577a]",
+  objectif: "bg-[#c9372c]",
 };
 
 const km = (m: number) => `${String(m / 1000).replace(".", ",")} km`;

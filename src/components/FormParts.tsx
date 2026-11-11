@@ -11,7 +11,7 @@ import { activityPace } from "@/lib/strava";
 import { Segmented } from "./ui";
 
 export const INPUT =
-  "w-full min-w-0 rounded-lg border border-white/15 bg-night px-2 py-2 text-sm focus:border-target focus:outline-none";
+  "w-full min-w-0 rounded-lg border border-white/10 bg-night px-2 py-2 text-sm focus:border-ink focus:outline-none";
 export const EMPTY_ROW: StrengthSet = { exercise: "", sets: 0, reps: 0, loadKg: 0 };
 
 export function RpeSlider({
@@ -204,7 +204,7 @@ export function StrengthEditor({
         <button
           type="button"
           onClick={() => onChange([...rows, EMPTY_ROW])}
-          className="text-sm font-semibold text-target hover:underline"
+          className="text-sm font-medium text-ink underline underline-offset-2 hover:no-underline"
         >
           + Ajouter un exercice
         </button>
@@ -234,7 +234,7 @@ export function CommentField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-white/15 bg-night px-3 py-2 text-sm placeholder:text-muted/60 focus:border-target focus:outline-none"
+        className="w-full rounded-lg border border-white/10 bg-night px-3 py-2 text-sm placeholder:text-muted/60 focus:border-ink focus:outline-none"
       />
     </div>
   );

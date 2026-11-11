@@ -73,7 +73,7 @@ export function NextCycle() {
     <div className="space-y-6">
       <header>
         <Kicker>Et ensuite ?</Kicker>
-        <h1 className="mt-2 text-3xl font-extrabold">Ton prochain objectif</h1>
+        <h1 className="mt-2 font-serif text-[1.375rem] font-normal">Ton prochain objectif</h1>
         <p className="mt-2 text-muted">
           {daysLeft >= 0
             ? `Ton plan actuel se termine ${formatLong(end)}.`
@@ -131,7 +131,7 @@ export function NextCycle() {
           onChange={(e) => setRef5k(e.target.value)}
           placeholder="27:30"
           inputMode="numeric"
-          className="w-32 rounded-xl border border-white/15 bg-night px-3 py-2.5 focus:border-target focus:outline-none"
+          className="w-32 rounded-lg border border-white/10 bg-night px-3 py-2.5 focus:border-ink focus:outline-none"
         />
         {!refOk && (
           <span className="mt-1 block text-sm text-warn">Écris le temps sous la forme 27:30.</span>
@@ -161,9 +161,9 @@ export function NextCycle() {
 /** Encart d'invitation vers « Et ensuite ? », à partir de la dernière semaine du plan. */
 export function NextCyclePrompt({ finished }: { finished: boolean }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-target/40 bg-target/10 p-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-target/40 bg-target/10 p-4">
       <div>
-        <p className="font-bold">{finished ? "Et maintenant ?" : "Dernière semaine du plan"}</p>
+        <p className="font-semibold">{finished ? "Et maintenant ?" : "Dernière semaine du plan"}</p>
         <p className="text-sm text-muted">
           Choisis ton prochain objectif : la suite démarre du niveau que tu as atteint.
         </p>

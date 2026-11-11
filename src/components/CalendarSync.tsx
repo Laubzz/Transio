@@ -87,7 +87,7 @@ export function CalendarSync({ state }: { state: AppState }) {
         <select
           value={time ?? ""}
           onChange={(e) => saveState({ ...state, calendar: { time: e.target.value || null } })}
-          className="rounded-xl border border-white/15 bg-night px-3 py-2 text-sm focus:border-target focus:outline-none"
+          className="rounded-lg border border-white/10 bg-night px-3 py-2 text-sm focus:border-ink focus:outline-none"
         >
           <option value="">Toute la journée</option>
           {TIMES.map((t) => (
@@ -107,7 +107,7 @@ export function CalendarSync({ state }: { state: AppState }) {
                   href={google}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-bold text-night hover:brightness-110"
+                  className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-semibold text-night hover:brightness-110"
                 >
                   Ouvrir dans Google Agenda
                 </a>
@@ -165,7 +165,7 @@ export function CalendarSync({ state }: { state: AppState }) {
       <button
         type="button"
         onClick={download}
-        className="mt-4 block text-sm font-semibold text-target hover:underline"
+        className="mt-4 block text-sm font-medium text-ink underline underline-offset-2 hover:no-underline"
       >
         Télécharger le fichier .ics
       </button>
