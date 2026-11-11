@@ -28,7 +28,6 @@ const RUN_KINDS = new Set<SessionKind>(["endurance", "sortie-longue", "tempo", "
 const FIXED = new Set<SessionKind>(["test", "objectif"]);
 const MIN_DURATION = 15;
 const DAY_NAME = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
-const floor5 = (m: number) => Math.floor(m / 5) * 5;
 const pct = (v: number, base: number) => Math.round((v / base - 1) * 100);
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
 
@@ -36,8 +35,6 @@ export interface EditResult {
   state: AppState;
   /** Ce qui a été fait, avec le nouveau calcul de charge. */
   message: string;
-  /** La séance a été raccourcie pour rester sous la hausse de charge tolérée. */
-  adjusted: boolean;
 }
 
 function editableWeek(state: AppState, weekIndex: number): Week {
@@ -91,29 +88,6 @@ function putWeeks(state: AppState, weeks: Week[], clearKeys: string[] = []): App
   };
 }
 
-/**
- * Garde-fou de charge : si la semaine dépasse de plus de 10 % sa charge d'origine, la séance
- * du jour `day` (celle qui vient d'arriver) est raccourcie jusqu'à revenir dans la limite.
- */
-function capLoad(week: Week, day: number): { week: Week; from?: number; to?: number } {
-  const base = week.baseLoad ?? plannedLoad(week);
-  const limit = base * (1 + RULES.editLoadTolerance);
-  const s = week.sessions.find((x) => x.day === day);
-  if (!s || FIXED.has(s.kind) || plannedLoad(week) <= limit) return { week };
-  const others = plannedLoad(week) - s.durationMin * s.targetRpe;
-  const to = Math.max(MIN_DURATION, floor5((limit - others) / s.targetRpe));
-  if (to >= s.durationMin) return { week };
-  const note = `Raccourcie de ${s.durationMin} à ${to} min : la charge de la semaine ne dépasse pas de plus de 10 % celle prévue.`;
-  return {
-    week: {
-      ...week,
-      sessions: week.sessions.map((x) => (x.day === day ? { ...x, durationMin: to, note } : x)),
-    },
-    from: s.durationMin,
-    to,
-  };
-}
-
 /** Phrase sur la charge de la semaine après une modification. */
 function loadText(before: Week, after: Week): string {
   const base = after.baseLoad ?? plannedLoad(before);
@@ -140,16 +114,13 @@ function hardNeighbour(week: Week, day: number): string {
     : "";
 }
 
-function capText(week: Week, cap: { from?: number; to?: number }): string {
-  if (cap.to === undefined) return "";
+/** Avertit, sans rien changer, quand la semaine dépasse de plus de 10 % sa charge d'origine. */
+function overLoad(week: Week): string {
   const base = week.baseLoad ?? 0;
-  const still = base > 0 ? pct(plannedLoad(week), base) : 0;
-  return (
-    ` La séance est passée de ${cap.from} à ${cap.to} min pour que la semaine ne dépasse pas de plus de 10 % la charge d'origine (${base} UA).` +
-    (still > RULES.editLoadTolerance * 100
-      ? ` Même raccourcie, la semaine reste à ${signed(still)} % : allège une autre séance si tu te sens fatigué.`
-      : "")
-  );
+  const gap = base > 0 ? pct(plannedLoad(week), base) : 0;
+  return gap > RULES.editLoadTolerance * 100
+    ? ` Attention : la semaine dépasse de ${gap} % sa charge d'origine. Garde un œil sur ta fatigue.`
+    : "";
 }
 
 export interface NewSession {
@@ -183,15 +154,14 @@ export function addSession(
     ...(spec.kind === "renfo" && state.plan.profile.mobility ? { mobility: true } : {}),
   };
   const session = { ...base, description: sessionDescription(base) };
-  const cap = capLoad(withSessions(week, [...week.sessions, session]), day);
+  const next = withSessions(week, [...week.sessions, session]);
   return {
-    state: putWeeks(state, [cap.week], [feedbackKey(weekIndex, day)]),
+    state: putWeeks(state, [next], [feedbackKey(weekIndex, day)]),
     message:
       `Séance programmée ${DAY_NAME[day]}, semaine ${weekIndex}. ` +
-      loadText(week, cap.week) +
-      capText(cap.week, cap) +
-      hardNeighbour(cap.week, day),
-    adjusted: cap.to !== undefined,
+      loadText(week, next) +
+      overLoad(next) +
+      hardNeighbour(next, day),
   };
 }
 
@@ -206,13 +176,12 @@ export function removeSession(state: AppState, weekIndex: number, day: number): 
   return {
     state: putWeeks(state, [next]),
     message: `Séance du ${DAY_NAME[day]} supprimée. ${loadText(week, next)}`,
-    adjusted: false,
   };
 }
 
 /**
  * Change la durée d'une séance prévue (pas encore notée), puis recalcule la charge de la
- * semaine. Une hausse qui fait dépasser la semaine de plus de 10 % est ramenée à la limite.
+ * semaine. La durée choisie est appliquée telle quelle.
  */
 export function resizeSession(
   state: AppState,
@@ -231,27 +200,22 @@ export function resizeSession(
   if (to === s.durationMin) throw new RangeError("C'est déjà la durée prévue.");
   const week = state.plan.weeks[weekIndex - 1];
   const note = `Durée changée de ${s.durationMin} à ${to} min.`;
-  const cap = capLoad(
-    withSessions(
-      week,
-      week.sessions.map((x) => (x.day === day ? { ...x, durationMin: to, note } : x)),
-    ),
-    day,
+  const next = withSessions(
+    week,
+    week.sessions.map((x) => (x.day === day ? { ...x, durationMin: to, note } : x)),
   );
   return {
-    state: putWeeks(state, [cap.week]),
+    state: putWeeks(state, [next]),
     message:
       `Séance du ${DAY_NAME[day]} : ${s.durationMin} → ${to} min. ` +
-      loadText(week, cap.week) +
-      capText(cap.week, cap),
-    adjusted: cap.to !== undefined,
+      loadText(week, next) +
+      overLoad(next),
   };
 }
 
 /**
  * Déplace une séance prévue vers un jour libre, de la même semaine ou d'une autre. Quand elle
- * change de semaine, la charge des deux semaines est recalculée et la séance est raccourcie
- * si elle fait dépasser la semaine d'arrivée de plus de 10 %.
+ * change de semaine, la charge des deux semaines est recalculée.
  */
 export function moveSession(
   state: AppState,
@@ -287,7 +251,6 @@ export function moveSession(
         `Séance déplacée du ${DAY_NAME[from.day]} au ${DAY_NAME[to.day]}. ` +
         loadText(src, next) +
         hardNeighbour(next, to.day),
-      adjusted: false,
     };
   }
 
@@ -295,15 +258,14 @@ export function moveSession(
     src,
     src.sessions.filter((x) => x.day !== from.day),
   );
-  const cap = capLoad(withSessions(dest, [...dest.sessions, moved]), to.day);
+  const arrived = withSessions(dest, [...dest.sessions, moved]);
   return {
-    state: putWeeks(state, [left, cap.week], clear),
+    state: putWeeks(state, [left, arrived], clear),
     message:
       `Séance déplacée au ${DAY_NAME[to.day]} de la semaine ${to.week}. ` +
-      `${loadText(src, left)} ${loadText(dest, cap.week)}` +
-      capText(cap.week, cap) +
-      hardNeighbour(cap.week, to.day),
-    adjusted: cap.to !== undefined,
+      `${loadText(src, left)} ${loadText(dest, arrived)}` +
+      overLoad(arrived) +
+      hardNeighbour(arrived, to.day),
   };
 }
 
