@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { ORIGIN_LABEL } from "@/engine";
-import { daysBetween, formatLong, position, sessionDate } from "@/lib/dates";
+import { formatLong, position, sessionDate } from "@/lib/dates";
 import { periodOn } from "@/lib/coaching";
 import { PHASE_LABEL } from "@/lib/labels";
-import { nextObjective, preparedBy } from "@/lib/objectives";
 import { feedbackKey, pendingReview } from "@/lib/state";
 import { useAppState, useToday } from "@/lib/store";
 import { NextCyclePrompt } from "./NextCycle";
 import { AdviceCard, KeyTiles, LastSessionCard } from "./Coaching";
 import { AddFreeSession, FreeSessionCard } from "./FreeSession";
+import { HomeAgenda } from "./HomeAgenda";
 import { Overview } from "./Overview";
 import { SessionPanel } from "./SessionPanel";
 import { ReviewPrompt, ReviewResult } from "./WeekReview";
@@ -40,6 +40,7 @@ export function Today() {
             première séance.
           </p>
         </header>
+        <HomeAgenda state={state} today={today} />
         <SessionPanel
           state={state}
           weekIndex={1}
@@ -73,6 +74,7 @@ export function Today() {
             progresser.
           </p>
         </header>
+        <HomeAgenda state={state} today={today} />
         {pending !== null && <ReviewPrompt state={state} weekIndex={pending} />}
         <NextCyclePrompt finished />
         <ButtonLink href="/calendrier" variant="ghost">
@@ -83,7 +85,6 @@ export function Today() {
   }
 
   const week = plan.weeks[pos.weekIndex - 1];
-  const goal = nextObjective(state, today);
   const todays = week.sessions.filter((s) => s.day === pos.day);
   const toRate = week.sessions.filter(
     (s) => s.day < pos.day && !state.feedback[feedbackKey(week.index, s.day)],
@@ -108,26 +109,9 @@ export function Today() {
         </p>
       </header>
 
-      <Overview state={state} today={today} />
+      <HomeAgenda state={state} today={today} />
 
-      {goal && (
-        <Link
-          href="/calendrier"
-          className="block rounded-lg border border-[#b98a00]/40 bg-[#b98a00]/10 p-4 text-sm hover:bg-[#b98a00]/15"
-        >
-          <strong>
-            ★ {goal.label}{" "}
-            {daysBetween(today, goal.date) === 0
-              ? "aujourd'hui"
-              : `dans ${daysBetween(today, goal.date)} jour${daysBetween(today, goal.date) > 1 ? "s" : ""}`}
-          </strong>
-          <span className="block text-muted">
-            {goal.priority === "principal"
-              ? "Objectif principal"
-              : `Objectif secondaire, en préparation de ${preparedBy(state, goal)}`}
-          </span>
-        </Link>
-      )}
+      <Overview state={state} today={today} />
       {pending !== null && <ReviewPrompt state={state} weekIndex={pending} />}
       {week.phase === "test" && <NextCyclePrompt finished={false} />}
       {pending === null && lastReview && lastReview.weekIndex === week.index - 1 && (

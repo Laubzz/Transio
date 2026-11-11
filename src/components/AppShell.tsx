@@ -1,6 +1,7 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { GOAL_LABEL, ORIGIN_LABEL } from "@/engine";
 import { useAppState } from "@/lib/store";
@@ -16,49 +17,45 @@ export const NAV = [
 ] as const;
 
 /**
- * Cadre des écrans de l'app : logo et menu déroulant en haut, comme le tableau de bord Pacio.
+ * Cadre des écrans de l'app : logo et boutons de menu en haut.
  * Renvoie au questionnaire s'il n'y a pas encore de plan.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const state = useAppState();
   const account = useAccount();
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
-  const current = NAV.find((n) => active(n.href))?.href ?? "";
-
   return (
     <div className="mx-auto flex min-h-full w-full max-w-6xl flex-1 flex-col px-4 pt-6 pb-12 md:px-8">
-      {/* En-tête : le logo à gauche, le menu à droite, comme dans Pacio. */}
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      {/* En-tête : le logo, puis les boutons du menu, comme dans Nolio. */}
+      <header className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-white/10 pb-4">
         <Logo href="/aujourdhui" />
-        <div className="flex items-center gap-3">
-          {account.auth === "signed-in" && (
-            <span className="hidden text-xs text-muted sm:inline" title={account.email}>
-              <SyncDot status={account.sync} /> {account.email}
-            </span>
-          )}
-          <label className="flex items-center gap-2 text-xs text-muted">
-            Menu
-            <select
-              aria-label="Menu"
-              value={current}
-              onChange={(e) => router.push(e.target.value)}
-              className="rounded-lg border border-white/10 bg-card px-2 py-1.5 text-sm text-ink"
+        <nav
+          aria-label="Navigation principale"
+          className="order-last flex w-full gap-1 overflow-x-auto md:order-none md:w-auto md:flex-1"
+        >
+          {NAV.map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active(href) ? "page" : undefined}
+              className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition ${
+                active(href) ? "bg-ink text-night" : "text-muted hover:bg-card-2 hover:text-ink"
+              }`}
             >
-              {current === "" && <option value="">Choisir…</option>}
-              {NAV.map(({ href, label }) => (
-                <option key={href} value={href}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+              {label}
+            </Link>
+          ))}
+        </nav>
+        {account.auth === "signed-in" && (
+          <span className="ml-auto hidden text-xs text-muted sm:inline" title={account.email}>
+            <SyncDot status={account.sync} /> {account.email}
+          </span>
+        )}
       </header>
       {state && (
-        <p className="-mt-3 mb-6 text-sm text-muted">
+        <p className="-mt-2 mb-6 text-sm text-muted">
           {(state.plan.profile.cycle ?? 1) > 1
             ? `Cycle ${state.plan.profile.cycle} · après la transition`
             : `${ORIGIN_LABEL[state.plan.profile.originSport]} vers la course`}{" "}
