@@ -40,7 +40,7 @@ function run(
     saveState(r.state);
     onDone({
       text: r.message,
-      tone: r.adjusted || r.message.includes("Attention") ? "warn" : "ok",
+      tone: r.message.includes("Attention") ? "warn" : "ok",
     });
   } catch (e) {
     onError((e as Error).message);
@@ -104,8 +104,7 @@ export function SessionActions({
             />
           </label>
           <p className="text-sm text-muted">
-            Prévu : {session.durationMin} min. Si la semaine dépasse de plus de 10 % sa charge
-            d&apos;origine, la durée est ramenée à la limite.
+            Prévu : {session.durationMin} min. La charge de la semaine est recalculée avec ta durée.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button type="submit" className="px-4 py-2">
@@ -289,8 +288,8 @@ export function AddPlannedForm({
         />
       </label>
       <p className="text-sm text-muted">
-        Si la séance fait dépasser de plus de 10 % la charge prévue de la semaine, elle est
-        raccourcie automatiquement.
+        La charge de la semaine est recalculée. Au-delà de 10 % de hausse, un avertissement
+        s&apos;affiche, sans rien changer.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" className="px-4 py-2">

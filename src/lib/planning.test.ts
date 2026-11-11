@@ -32,7 +32,6 @@ describe("modifier le plan", () => {
     expect(w.sessions.find((x) => x.day === 4)?.movedFrom).toBe(3);
     expect(plannedLoad(w)).toBe(plannedLoad(s.plan.weeks[1]));
     expect(r.message).toContain("inchangée");
-    expect(r.adjusted).toBe(false);
   });
 
   it("refuse un jour déjà pris, un jour passé et une séance déjà notée", () => {
@@ -45,35 +44,33 @@ describe("modifier le plan", () => {
     expect(() => removeSession(rated, 1, 0)).toThrow(/déjà notée/);
   });
 
-  it("raccourcit une séance ajoutée qui fait dépasser la charge de plus de 10 %", () => {
+  it("garde la durée d'une séance ajoutée et prévient au-delà de 10 % de hausse", () => {
     const s = fresh();
     const base = plannedLoad(s.plan.weeks[3]);
     const r = addSession(s, 4, 2, { kind: "tempo", durationMin: 60 }, TODAY);
     const w = r.state.plan.weeks[3];
     const added = w.sessions.find((x) => x.day === 2)!;
-    expect(r.adjusted).toBe(true);
-    expect(added.durationMin).toBeLessThan(60);
+    expect(added.durationMin).toBe(60);
     expect(added.custom).toBe(true);
-    expect(added.note).toContain("10 %");
-    expect(plannedLoad(w)).toBeLessThanOrEqual(base * 1.1 + added.targetRpe * 15);
-    expect(r.message).toContain("pour que la semaine ne dépasse pas");
+    expect(plannedLoad(w)).toBe(base + 60 * added.targetRpe);
+    expect(r.message).toContain("Attention : la semaine dépasse de");
   });
 
   it("laisse passer une séance ajoutée qui reste sous 10 % de hausse", () => {
     const s = removeSession(fresh(), 4, 0).state;
     const r = addSession(s, 4, 2, { kind: "renfo", durationMin: 40, focus: "haut" }, TODAY);
-    expect(r.adjusted).toBe(false);
+    expect(r.message).not.toContain("Attention");
     expect(r.state.plan.weeks[3].sessions.find((x) => x.day === 2)?.focus).toBe("haut");
   });
 
-  it("ajuste la séance déplacée vers une autre semaine trop chargée", () => {
+  it("garde la durée d'une séance déplacée vers une autre semaine", () => {
     const s = fresh();
     const long = s.plan.weeks[4].sessions.find((x) => x.kind === "sortie-longue")!;
     const r = moveSession(s, { week: 5, day: long.day }, { week: 6, day: 2 }, TODAY);
     const dest = r.state.plan.weeks[5];
     expect(r.state.plan.weeks[4].sessions.some((x) => x.kind === "sortie-longue")).toBe(false);
-    expect(dest.sessions.find((x) => x.day === 2)!.durationMin).toBeLessThan(long.durationMin);
-    expect(r.adjusted).toBe(true);
+    expect(dest.sessions.find((x) => x.day === 2)!.durationMin).toBe(long.durationMin);
+    expect(r.message).toContain("Attention");
     expect(r.message).toContain("semaine 6");
   });
 
@@ -94,18 +91,16 @@ describe("modifier le plan", () => {
     expect(w.sessions.find((x) => x.day === 3)!.durationMin).toBe(thu.durationMin - 10);
     expect(plannedLoad(w)).toBe(plannedLoad(s.plan.weeks[2]) - 10 * thu.targetRpe);
     expect(w.edited).toBe(true);
-    expect(r.adjusted).toBe(false);
+    expect(r.message).not.toContain("Attention");
     expect(r.message).toContain(`${thu.durationMin} → ${thu.durationMin - 10} min`);
   });
 
-  it("ramène une durée trop longue à 10 % de charge en plus", () => {
+  it("applique une durée longue telle quelle et prévient", () => {
     const s = fresh();
-    const base = plannedLoad(s.plan.weeks[2]);
     const r = resizeSession(s, 3, 6, 200);
     const long = r.state.plan.weeks[2].sessions.find((x) => x.day === 6)!;
-    expect(r.adjusted).toBe(true);
-    expect(long.durationMin).toBeLessThan(200);
-    expect(plannedLoad(r.state.plan.weeks[2])).toBeLessThanOrEqual(base * 1.1);
+    expect(long.durationMin).toBe(200);
+    expect(r.message).toContain("Attention : la semaine dépasse de");
   });
 
   it("refuse de changer la durée d'une séance notée ou du test", () => {
