@@ -73,3 +73,10 @@ export function formatShort(s: ISODate): string {
   const [y, m, d] = parts(s);
   return SHORT.format(new Date(y, m - 1, d));
 }
+
+/** Numéro de semaine ISO (lundi = premier jour), comme dans les agendas. */
+export function isoWeek(monday: ISODate): number {
+  const thursday = new Date(`${addDays(monday, 3)}T12:00:00Z`);
+  const jan1 = Date.UTC(thursday.getUTCFullYear(), 0, 1);
+  return Math.floor((thursday.getTime() - jan1) / 86_400_000 / 7) + 1;
+}

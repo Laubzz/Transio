@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   daysBetween,
+  isoWeek,
   mondayOf,
   nextMonday,
   position,
@@ -53,5 +54,14 @@ describe("dates", () => {
 
   it("refuse une date mal formée", () => {
     expect(() => weekday("09/11/2026")).toThrow(RangeError);
+  });
+});
+
+describe("numéro de semaine", () => {
+  it("suit la norme ISO, comme les agendas", () => {
+    expect(isoWeek("2026-11-09")).toBe(46);
+    expect(isoWeek("2026-11-16")).toBe(47);
+    expect(isoWeek("2026-12-28")).toBe(53);
+    expect(isoWeek("2027-01-04")).toBe(1);
   });
 });

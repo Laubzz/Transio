@@ -6,6 +6,7 @@ import {
   addDays,
   daysBetween,
   formatShort,
+  isoWeek,
   mondayOf,
   sessionDate,
   type ISODate,
@@ -14,7 +15,7 @@ import { DAYS_SHORT, KIND_COLOR, PHASE_LABEL, sessionTitle } from "@/lib/labels"
 import { objectivesOn } from "@/lib/objectives";
 import { feedbackKey, type Activity, type AppState } from "@/lib/state";
 import { FREE_SPORT_LABEL } from "./FreeSession";
-import { Button } from "./ui";
+import { Segmented } from "./ui";
 
 const MONTH = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" });
 const monthLabel = (first: ISODate) => MONTH.format(new Date(`${first}T12:00:00`));
@@ -110,7 +111,17 @@ export function WeeksOverview({
   );
 }
 
-/** Vue simplifiée, mois par mois : un calendrier avec les séances de chaque jour. */
+/** Séances affichées : prévues, réalisées, ou les deux. */
+export type CalendarShow = "prevu" | "realise" | "both";
+
+const hm = (min: number) =>
+  min >= 60 ? `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}` : `${min} min`;
+
+/**
+ * Vue mois : un calendrier avec, pour chaque jour, les séances prévues (en pointillés tant
+ * qu'elles ne sont pas faites) et réalisées (pleines), les séances libres et les activités
+ * Strava, plus le numéro de semaine et le total prévu / réalisé de chaque semaine.
+ */
 export function MonthOverview({
   state,
   today,
@@ -120,6 +131,7 @@ export function MonthOverview({
   today: ISODate;
   onPick: (weekIndex: number) => void;
 }) {
+  const [show, setShow] = useState<CalendarShow>("both");
   const origin = ORIGIN_LABEL[state.plan.profile.originSport];
   const total = state.plan.weeks.length;
   const end = addDays(state.startDate, total * 7 - 1);
@@ -154,6 +166,30 @@ export function MonthOverview({
   const monthActs = [...byDate.entries()]
     .filter(([d]) => d >= month && d <= monthEnd)
     .flatMap(([, a]) => a);
+  // Une activité Strava liée à une séance notée n'est pas comptée deux fois.
+  const linked = new Set<number>([
+    ...Object.values(state.feedback).flatMap((f) => (f.activityId ? [f.activityId] : [])),
+    ...(state.freeSessions ?? []).flatMap((f) => (f.activityId ? [f.activityId] : [])),
+  ]);
+  const doneOf = (weekIndex: number, day: number) => state.feedback[feedbackKey(weekIndex, day)];
+  const freeOn = (date: ISODate) => (state.freeSessions ?? []).filter((f) => f.date === date);
+  const actsOn = (date: ISODate) => (byDate.get(date) ?? []).filter((a) => !linked.has(a.id));
+  /** Minutes prévues et réalisées d'une semaine du calendrier. */
+  const totals = (days: ISODate[]) => {
+    let planned = 0;
+    let done = 0;
+    for (const date of days) {
+      const slot = sessionsOn(date);
+      for (const x of slot?.sessions ?? []) {
+        planned += x.durationMin;
+        const fb = doneOf(slot!.week.index, x.day);
+        if (fb?.done) done += fb.durationMin ?? x.durationMin;
+      }
+      done += freeOn(date).reduce((t, f) => t + f.durationMin, 0);
+      done += actsOn(date).reduce((t, a) => t + Math.round(a.movingSec / 60), 0);
+    }
+    return { planned, done };
+  };
   const actText = (a: Activity) =>
     a.distanceM
       ? `${(a.distanceM / 1000).toFixed(1).replace(".", ",")} km`
@@ -161,55 +197,78 @@ export function MonthOverview({
 
   return (
     <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-[0.9375rem] font-medium first-letter:uppercase">
-            {monthLabel(month)}
-          </h2>
-          <p className="text-sm text-muted tabular-nums">
-            {[
-              monthSessions.length &&
-                `${monthSessions.length} séances · ${runMinutesOf({ sessions: monthSessions })} min de course · ${plannedLoad({ sessions: monthSessions })} UA prévues`,
-              monthActs.length &&
-                `${monthActs.length} activité${monthActs.length > 1 ? "s" : ""} importée${monthActs.length > 1 ? "s" : ""}, ${Math.round(monthActs.reduce((t, a) => t + a.distanceM, 0) / 1000)} km`,
-            ]
-              .filter(Boolean)
-              .join(" · ") || "Rien ce mois-ci"}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            className="px-4 py-2"
-            disabled={month <= firstMonth}
-            onClick={() => setMonth(nextMonth(month, -1))}
-          >
-            ← Mois préc.
-          </Button>
-          <Button
-            variant="ghost"
-            className="px-4 py-2"
-            disabled={month >= lastMonth}
-            onClick={() => setMonth(nextMonth(month, 1))}
-          >
-            Mois suiv. →
-          </Button>
-        </div>
+      <Segmented
+        label="Afficher"
+        value={show}
+        onChange={setShow}
+        options={[
+          { value: "prevu", label: "Prévu" },
+          { value: "realise", label: "Réalisé" },
+          { value: "both", label: "Prévu et réalisé" },
+        ]}
+      />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <button
+          type="button"
+          aria-label="Mois précédent"
+          disabled={month <= firstMonth}
+          onClick={() => setMonth(nextMonth(month, -1))}
+          className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-night text-lg disabled:opacity-35"
+        >
+          ‹
+        </button>
+        <h2 className="min-w-32 text-center font-serif text-lg first-letter:uppercase">
+          {monthLabel(month)}
+        </h2>
+        <button
+          type="button"
+          aria-label="Mois suivant"
+          disabled={month >= lastMonth}
+          onClick={() => setMonth(nextMonth(month, 1))}
+          className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-night text-lg disabled:opacity-35"
+        >
+          ›
+        </button>
+        <p className="w-full text-sm text-muted tabular-nums sm:ml-2 sm:w-auto">
+          {[
+            monthSessions.length &&
+              `${monthSessions.length} séances · ${runMinutesOf({ sessions: monthSessions })} min de course · ${plannedLoad({ sessions: monthSessions })} UA prévues`,
+            monthActs.length &&
+              `${monthActs.length} activité${monthActs.length > 1 ? "s" : ""} importée${monthActs.length > 1 ? "s" : ""}, ${Math.round(monthActs.reduce((t, a) => t + a.distanceM, 0) / 1000)} km`,
+          ]
+            .filter(Boolean)
+            .join(" · ") || "Rien ce mois-ci"}
+        </p>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted" aria-hidden>
+      <div
+        className="grid grid-cols-7 gap-1 sm:grid-cols-[2rem_repeat(7,minmax(0,1fr))_6.5rem] text-center text-xs text-muted"
+        aria-hidden
+      >
+        <span className="hidden sm:block">Sem.</span>
         {DAYS_SHORT.map((d) => (
           <span key={d}>{d}</span>
         ))}
+        <span className="hidden sm:block">Total</span>
       </div>
       <div className="space-y-1">
         {weeks.map((days) => (
-          <div key={days[0]} className="grid grid-cols-7 gap-1">
+          <div
+            key={days[0]}
+            className="grid grid-cols-7 gap-1 sm:grid-cols-[2rem_repeat(7,minmax(0,1fr))_6.5rem]"
+          >
+            <span className="hidden pt-1 text-center text-xs text-muted tabular-nums sm:block">
+              {isoWeek(days[0])}
+            </span>
             {days.map((date) => {
               const slot = sessionsOn(date);
               const outside = date < month || date > monthEnd;
               const goals = objectivesOn(state, date);
-              const acts = byDate.get(date) ?? [];
+              const acts = show === "prevu" ? [] : actsOn(date);
+              const frees = show === "prevu" ? [] : freeOn(date);
+              const planned = (slot?.sessions ?? []).filter(
+                (x) => show !== "realise" || doneOf(slot!.week.index, x.day)?.done,
+              );
               const actCls =
                 "block truncate rounded border border-[#fc4c02]/50 px-1 py-0.5 text-[10px] leading-tight text-[#c43c02] sm:text-xs";
               const body = (
@@ -219,14 +278,34 @@ export function MonthOverview({
                   >
                     {Number(date.slice(8))}
                   </span>
-                  {slot?.sessions.map((s) => (
+                  {planned.map((s) => {
+                    const done = doneOf(slot!.week.index, s.day)?.done;
+                    return (
+                      <span
+                        key={s.kind + s.day}
+                        className={`block truncate rounded border px-1 py-0.5 text-[10px] leading-tight font-semibold sm:text-xs ${
+                          done ? "text-[#fff]" : "border-dashed text-ink"
+                        }`}
+                        style={{
+                          borderColor: KIND_COLOR[s.kind],
+                          background: done ? KIND_COLOR[s.kind] : "transparent",
+                        }}
+                      >
+                        <span className="hidden sm:inline">{sessionTitle(s, origin)} · </span>
+                        {s.durationMin}
+                        <span className="hidden sm:inline"> min</span>
+                      </span>
+                    );
+                  })}
+                  {frees.map((f) => (
                     <span
-                      key={s.kind + s.day}
-                      className="block truncate rounded px-1 py-0.5 text-[10px] leading-tight font-semibold text-ink sm:text-xs"
-                      style={{ background: KIND_COLOR[s.kind] }}
+                      key={f.id}
+                      className="block truncate rounded border border-ink/40 px-1 py-0.5 text-[10px] leading-tight sm:text-xs"
                     >
-                      <span className="hidden sm:inline">{sessionTitle(s, origin)} · </span>
-                      {s.durationMin}
+                      <span className="hidden sm:inline">
+                        Libre · {FREE_SPORT_LABEL[f.sport]} ·{" "}
+                      </span>
+                      {f.durationMin}
                       <span className="hidden sm:inline"> min</span>
                     </span>
                   ))}
@@ -291,12 +370,21 @@ export function MonthOverview({
                 </div>
               );
             })}
+            {(() => {
+              const t = totals(days);
+              return (
+                <div className="hidden flex-col justify-center gap-0.5 rounded-lg bg-card-2 p-1.5 text-xs tabular-nums sm:flex">
+                  {show !== "realise" && <span className="text-muted">Prévu {hm(t.planned)}</span>}
+                  {show !== "prevu" && <span className="font-medium">Fait {hm(t.done)}</span>}
+                </div>
+              );
+            })()}
           </div>
         ))}
       </div>
       <p className="text-xs text-muted">
-        Touche un jour du plan pour ouvrir sa semaine en détail. Les cadres orange sont tes
-        activités importées de Strava ; avant le plan, elles ouvrent l&apos;activité sur Strava.
+        Pointillés : séance prévue pas encore faite. Plein : séance faite. Cadre orange : activité
+        Strava. Touche un jour du plan pour ouvrir sa semaine en détail.
       </p>
     </section>
   );
