@@ -98,7 +98,12 @@ function start() {
       set({ sync: "idle", recovery: false });
     }
     // Pas d'appel Supabase directement dans ce rappel (recommandation de supabase-js).
-    if (id && changedUser) setTimeout(() => void pull(id), 0);
+    // L'état passe à « chargement » tout de suite : sinon la page de connexion, ne voyant pas
+    // encore de plan, renvoyait au questionnaire avant que celui du compte ne soit arrivé.
+    if (id && changedUser) {
+      set({ sync: "loading" });
+      setTimeout(() => void pull(id), 0);
+    }
   });
   onLocalChange((state) => {
     if (!userId) return;

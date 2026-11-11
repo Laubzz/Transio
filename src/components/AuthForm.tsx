@@ -44,7 +44,8 @@ export function AuthForm({ mode }: { mode: "connexion" | "inscription" }) {
   // Une fois connecté (et l'état du compte chargé), on entre dans l'app.
   useEffect(() => {
     if (account.auth === "signed-in" && account.sync !== "loading") {
-      router.replace(readState() ? "/aujourdhui" : "/questionnaire");
+      // Sans plan dans le compte (et sans erreur de chargement), on crée le premier.
+      router.replace(readState() || account.sync === "error" ? "/aujourdhui" : "/questionnaire");
     }
   }, [account.auth, account.sync, router]);
 
