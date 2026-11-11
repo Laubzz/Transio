@@ -107,15 +107,19 @@ function raceOf(objectives: PlanObjective[] | undefined, week: number): PlanObje
   return inWeek.find((o) => o.priority === "principal") ?? inWeek[0];
 }
 
+/** Volume minimal d'une semaine : 30 min par sortie, 40 min pour la sortie longue. */
+export const minWeekMinutes = (n: number) => RULES.minRunMin * (n - 1) + RULES.minLongRunMin;
+
 /** Minutes de course de la première semaine. */
 export function startMinutes(p: Profile): number {
-  if (p.startRunMinutes) return Math.max(15 * p.runDaysPerWeek, floor5(p.startRunMinutes));
+  if (p.startRunMinutes)
+    return Math.max(minWeekMinutes(p.runDaysPerWeek), floor5(p.startRunMinutes));
   let m = START_RUN_MINUTES[p.originSport];
   if (p.injuries.some((i) => LOWER_LIMB.includes(i.zone))) m *= INJURY_START_FACTOR;
   if (p.weeklyHoursPast < LOW_PAST_VOLUME_HOURS) m *= LOW_PAST_VOLUME_FACTOR;
   // Quelqu'un qui court déjà repart de 90 % de son volume actuel, sans dépasser le pic visé.
   const current = Math.min(PEAK_RUN_MINUTES[p.goal], (p.currentRunMinutes ?? 0) * 0.9);
-  return Math.max(15 * p.runDaysPerWeek, floor5(Math.max(m, current)));
+  return Math.max(minWeekMinutes(p.runDaysPerWeek), floor5(Math.max(m, current)));
 }
 
 /** Phase d'une semaine : base ≈ 40 %, rythme ≈ 30 %, spécifique le reste, test la dernière. */
@@ -176,7 +180,9 @@ export function scheduleVolumes(
       lastBuild = m;
     }
   }
-  return out;
+  // Aucune semaine, même allégée, ne descend sous le minimum par sortie.
+  const min = minWeekMinutes(profile.runDaysPerWeek);
+  return out.map((v) => ({ ...v, minutes: Math.max(min, v.minutes) }));
 }
 
 /**
@@ -189,7 +195,9 @@ export function splitRun(total: number, n: 2 | 3 | 4, goal: Profile["goal"]): nu
   const share = round5(total * LONG_RUN_SHARE[n]);
   const stretched = Math.min(LONG_RUN_TARGET[goal], floor5(total - MIN_OTHER_RUN[n] * (n - 1)));
   // Au-delà de 120 % de la durée visée, les minutes en plus vont aux autres séances.
-  const long = Math.min(Math.max(share, stretched), round5(LONG_RUN_TARGET[goal] * 1.2));
+  const capped = Math.min(Math.max(share, stretched), round5(LONG_RUN_TARGET[goal] * 1.2));
+  // Les autres sorties gardent 30 min, la sortie longue 40 min.
+  const long = Math.max(RULES.minLongRunMin, Math.min(capped, total - RULES.minRunMin * (n - 1)));
   const rest = total - long;
   const each = floor5(rest / (n - 1));
   const parts = Array(n - 1).fill(each);
@@ -199,8 +207,7 @@ export function splitRun(total: number, n: 2 | 3 | 4, goal: Profile["goal"]): nu
 
 /**
  * Donne à la séance à l'allure objectif la durée dont elle a besoin (échauffement, kilomètres,
- * récupérations, retour au calme), en la prenant sur les footings, qui gardent au moins 20 min
- * (30 min pour le fractionné). La sortie longue ne change pas.
+ * récupérations, retour au calme), en la prenant sur les footings, qui gardent au moins 30 min. La sortie longue ne change pas.
  */
 function fitQuality(
   profile: Profile,
@@ -212,9 +219,8 @@ function fitQuality(
   const need = t < 0 ? null : goalPaceNeed(profile, qualityRank(profile, week));
   if (need === null || need <= durations[t]) return durations;
   const others = kinds.map((_, i) => i).filter((i) => i !== t && i !== kinds.length - 1);
-  const floor = (i: number) => (kinds[i] === "fractionne" ? 30 : 20);
   const rest = durations.slice(0, -1).reduce((a, b) => a + b, 0);
-  const tempo = Math.min(need, rest - others.reduce((a, i) => a + floor(i), 0));
+  const tempo = Math.min(need, rest - others.length * RULES.minRunMin);
   if (tempo <= durations[t]) return durations;
   const out = [...durations];
   out[t] = tempo;
@@ -313,19 +319,23 @@ function raceWeekRuns(profile: Profile, volume: WeekVolume, race: PlanObjective)
   const principal = race.priority === "principal";
   const raceMin = raceMinutes(profile, race.distanceKm);
   const others = RUN_DAYS[n].slice(0, n - 1).filter((d) => d !== race.day);
-  const each = clamp(floor5((volume.minutes - raceMin) / Math.max(1, others.length)), 20, 40);
+  const each = clamp(
+    floor5((volume.minutes - raceMin) / Math.max(1, others.length)),
+    RULES.minRunMin,
+    40,
+  );
   const easy = (day: number): Session => {
     const eve = day === race.day - 1;
     const after = day > race.day;
     return {
       day,
       kind: "endurance",
-      durationMin: eve ? 20 : after ? Math.min(each, 30) : each,
+      durationMin: eve || after ? RULES.minRunMin : each,
       targetRpe: TARGET_RPE.endurance,
       impact: true,
       description: SESSION_DESCRIPTION.endurance,
       ...(eve
-        ? { note: `Déblocage court la veille de ${race.label} : 20 min faciles.` }
+        ? { note: `Déblocage court la veille de ${race.label} : 30 min faciles.` }
         : after
           ? { note: `Récupération après ${race.label} : très facile.` }
           : {}),
@@ -364,8 +374,8 @@ export function buildWeek(
     const test = 25 + raceMinutes(profile, GOAL_DISTANCE_KM[profile.goal]);
     if (test > durations[n - 1]) {
       durations[n - 1] = test;
-      // Le test prend plus de place : les footings d'avant restent très courts.
-      for (let i = 0; i < n - 1; i++) durations[i] = Math.min(durations[i], 20);
+      // Le test prend plus de place : les footings d'avant restent au minimum de 30 min.
+      for (let i = 0; i < n - 1; i++) durations[i] = Math.min(durations[i], RULES.minRunMin);
     }
   }
   const runDays = race ? [...RUN_DAYS[n].slice(0, n - 1), race.day] : RUN_DAYS[n];

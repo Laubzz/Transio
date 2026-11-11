@@ -31,6 +31,10 @@ export const RULES = {
   editLoadTolerance: 0.1,
   /** Séances de renforcement par semaine, au plus. */
   maxStrengthPerWeek: 4,
+  /** Durée minimale d'une sortie de course, dès la première semaine. */
+  minRunMin: 30,
+  /** Durée minimale de la sortie longue, dès la première semaine. */
+  minLongRunMin: 40,
   minWeeks: 6,
   maxWeeks: 24,
 } as const;
@@ -110,7 +114,7 @@ export const LONG_RUN_TARGET: Record<Goal, number> = {
 export const GOAL_DISTANCE_KM: Record<Goal, number> = { "5k": 5, "10k": 10, semi: 21.1, trail: 9 };
 
 /** Durée gardée pour chaque autre séance de course quand la sortie longue s'allonge. */
-export const MIN_OTHER_RUN: Record<2 | 3 | 4, number> = { 2: 45, 3: 30, 4: 30 };
+export const MIN_OTHER_RUN: Record<2 | 3 | 4, number> = { 2: 45, 3: 35, 4: 35 };
 
 /** À partir de ce volume de course déjà pratiqué chaque semaine, pas de course-marche. */
 export const RUNNER_MINUTES = 60;
