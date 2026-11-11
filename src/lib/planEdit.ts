@@ -211,6 +211,44 @@ export function removeSession(state: AppState, weekIndex: number, day: number): 
 }
 
 /**
+ * Change la durée d'une séance prévue (pas encore notée), puis recalcule la charge de la
+ * semaine. Une hausse qui fait dépasser la semaine de plus de 10 % est ramenée à la limite.
+ */
+export function resizeSession(
+  state: AppState,
+  weekIndex: number,
+  day: number,
+  durationMin: number,
+): EditResult {
+  const s = pendingSession(state, weekIndex, day);
+  if (FIXED.has(s.kind)) {
+    throw new Error("La durée d'un test ou d'une course objectif dépend de sa distance.");
+  }
+  if (!(durationMin >= MIN_DURATION && durationMin <= 300)) {
+    throw new RangeError(`Durée entre ${MIN_DURATION} et 300 min.`);
+  }
+  const to = Math.round(durationMin / 5) * 5;
+  if (to === s.durationMin) throw new RangeError("C'est déjà la durée prévue.");
+  const week = state.plan.weeks[weekIndex - 1];
+  const note = `Durée changée de ${s.durationMin} à ${to} min.`;
+  const cap = capLoad(
+    withSessions(
+      week,
+      week.sessions.map((x) => (x.day === day ? { ...x, durationMin: to, note } : x)),
+    ),
+    day,
+  );
+  return {
+    state: putWeeks(state, [cap.week]),
+    message:
+      `Séance du ${DAY_NAME[day]} : ${s.durationMin} → ${to} min. ` +
+      loadText(week, cap.week) +
+      capText(cap.week, cap),
+    adjusted: cap.to !== undefined,
+  };
+}
+
+/**
  * Déplace une séance prévue vers un jour libre, de la même semaine ou d'une autre. Quand elle
  * change de semaine, la charge des deux semaines est recalculée et la séance est raccourcie
  * si elle fait dépasser la semaine d'arrivée de plus de 10 %.
