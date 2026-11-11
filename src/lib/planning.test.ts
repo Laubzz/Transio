@@ -4,7 +4,7 @@ import { VELO_TO_10K } from "@/engine/fixtures";
 import { analyseFeedback, autoReview, submitFeedback } from "./adapt";
 import { formByWeek } from "./form";
 import { applyObjectives, nextObjective, removeObjective, saveObjective } from "./objectives";
-import { addSession, freeDays, moveSession, removeSession } from "./planEdit";
+import { addSession, freeDays, moveSession, removeSession, resizeSession } from "./planEdit";
 import { createState, feedbackKey, isReviewed, recordFeedback, type AppState } from "./state";
 
 const START = "2026-01-05"; // un lundi
@@ -84,6 +84,37 @@ describe("modifier le plan", () => {
     const free = freeDays(s, w.index, TODAY).find((d) => Math.abs(d - hard.day) === 1)!;
     const r = addSession(s, w.index, free, { kind: "tempo", durationMin: 20 }, TODAY);
     expect(r.message).toContain("deux séances dures se suivent");
+  });
+
+  it("change la durée d'une séance et recalcule la charge", () => {
+    const s = fresh();
+    const thu = s.plan.weeks[2].sessions.find((x) => x.day === 3)!;
+    const r = resizeSession(s, 3, 3, thu.durationMin - 10);
+    const w = r.state.plan.weeks[2];
+    expect(w.sessions.find((x) => x.day === 3)!.durationMin).toBe(thu.durationMin - 10);
+    expect(plannedLoad(w)).toBe(plannedLoad(s.plan.weeks[2]) - 10 * thu.targetRpe);
+    expect(w.edited).toBe(true);
+    expect(r.adjusted).toBe(false);
+    expect(r.message).toContain(`${thu.durationMin} → ${thu.durationMin - 10} min`);
+  });
+
+  it("ramène une durée trop longue à 10 % de charge en plus", () => {
+    const s = fresh();
+    const base = plannedLoad(s.plan.weeks[2]);
+    const r = resizeSession(s, 3, 6, 200);
+    const long = r.state.plan.weeks[2].sessions.find((x) => x.day === 6)!;
+    expect(r.adjusted).toBe(true);
+    expect(long.durationMin).toBeLessThan(200);
+    expect(plannedLoad(r.state.plan.weeks[2])).toBeLessThanOrEqual(base * 1.1);
+  });
+
+  it("refuse de changer la durée d'une séance notée ou du test", () => {
+    const s = fresh();
+    expect(() => resizeSession(recordFeedback(s, 1, 1, { done: true, rpe: 4 }), 1, 1, 40)).toThrow(
+      /déjà notée/,
+    );
+    expect(() => resizeSession(s, 12, 6, 40)).toThrow(/distance/);
+    expect(() => resizeSession(s, 3, 3, 5)).toThrow(/Durée entre/);
   });
 
   it("recalcule les courbes de forme après une modification", () => {

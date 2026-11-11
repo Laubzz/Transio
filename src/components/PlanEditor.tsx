@@ -10,6 +10,7 @@ import {
   freeDays,
   moveSession,
   removeSession,
+  resizeSession,
   type AddableKind,
   type EditResult,
 } from "@/lib/planEdit";
@@ -61,6 +62,8 @@ export function SessionActions({
   onDone: (n: EditNotice) => void;
 }) {
   const [moving, setMoving] = useState(false);
+  const [resizing, setResizing] = useState(false);
+  const [minutes, setMinutes] = useState(session.durationMin);
   const [toWeek, setToWeek] = useState(weekIndex);
   const [toDay, setToDay] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +83,40 @@ export function SessionActions({
       <p className="mt-1 text-sm text-muted">
         La charge de la semaine et les courbes de forme sont recalculées après chaque changement.
       </p>
-      {moving ? (
+      {resizing ? (
+        <form
+          className="mt-4 space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(() => resizeSession(state, weekIndex, session.day, minutes), onDone, setError);
+          }}
+        >
+          <label className="block max-w-40">
+            <span className="mb-2 block text-sm font-semibold">Nouvelle durée (min)</span>
+            <input
+              type="number"
+              min={15}
+              max={300}
+              step={5}
+              value={minutes}
+              onChange={(e) => setMinutes(Number(e.target.value))}
+              className={INPUT}
+            />
+          </label>
+          <p className="text-sm text-muted">
+            Prévu : {session.durationMin} min. Si la semaine dépasse de plus de 10 % sa charge
+            d&apos;origine, la durée est ramenée à la limite.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" className="px-4 py-2">
+              Changer la durée
+            </Button>
+            <Button variant="ghost" className="px-4 py-2" onClick={() => setResizing(false)}>
+              Annuler
+            </Button>
+          </div>
+        </form>
+      ) : moving ? (
         <form
           className="mt-4 space-y-4"
           onSubmit={(e) => {
@@ -131,7 +167,7 @@ export function SessionActions({
           )}
           <div className="flex flex-wrap gap-2">
             <Button type="submit" className="px-4 py-2" disabled={toDay === null}>
-              Déplacer la séance
+              Changer le jour
             </Button>
             <Button variant="ghost" className="px-4 py-2" onClick={() => setMoving(false)}>
               Annuler
@@ -141,8 +177,13 @@ export function SessionActions({
       ) : (
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="ghost" className="px-4 py-2" onClick={() => setMoving(true)}>
-            Déplacer
+            Changer le jour
           </Button>
+          {!fixed && (
+            <Button variant="ghost" className="px-4 py-2" onClick={() => setResizing(true)}>
+              Changer la durée
+            </Button>
+          )}
           <Button
             variant="danger"
             className="px-4 py-2"
