@@ -35,6 +35,16 @@ describe("allures", () => {
     expect(parseDuration("1:02:15")).toBe(3735);
     expect(parseDuration("25:75")).toBeNull();
     expect(parseDuration("abc")).toBeNull();
+    // Sur téléphone, le pavé numérique n'a pas de « : ».
+    expect(parseDuration("25.30")).toBe(1530);
+    expect(parseDuration("25,30")).toBe(1530);
+    expect(parseDuration(" 25 30 ")).toBe(1530);
+    expect(parseDuration("2530")).toBe(1530);
+    expect(parseDuration("930")).toBe(570);
+    expect(parseDuration("10215")).toBe(3735);
+    expect(parseDuration("1.02.15")).toBe(3735);
+    expect(parseDuration("2575")).toBeNull();
+    expect(parseDuration("25")).toBeNull();
     expect(formatDuration(1530)).toBe("25:30");
     expect(formatPace(330)).toBe("5:30");
   });
