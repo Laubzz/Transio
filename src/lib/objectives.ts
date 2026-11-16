@@ -3,13 +3,15 @@ import {
   RULES,
   formatDuration,
   formatPace,
+  generatePlan,
   lastBuildUpTo,
   rebuildFrom,
+  type Goal,
   startMinutes,
   type PlanObjective,
 } from "@/engine";
-import { daysBetween, formatLong, sessionDate, type ISODate } from "./dates";
-import { isReviewed, type AppState, type Objective } from "./state";
+import { daysBetween, formatLong, position, sessionDate, type ISODate } from "./dates";
+import { feedbackKey, isReviewed, type AppState, type Objective } from "./state";
 
 const same = (a: PlanObjective, b: PlanObjective) =>
   a.week === b.week &&
@@ -34,7 +36,8 @@ const EASY = /premi[èe]re|d[ée]couv|finir|terminer|sans chrono|pas de chrono|p
 /**
  * Lit le commentaire d'un objectif, avec des règles simples : un temps visé (« 45:00 »,
  * « 1h45 », « 44'30 », « 50 min »), un parcours vallonné, une course pour finir sans chrono.
- * Un temps n'est retenu que s'il donne une allure plausible (2:30 à 10:00 /km).
+ * Une allure (« 4:25/km ») est aussi lue. Un temps n'est retenu que s'il donne une allure
+ * plausible (2:30 à 10:00 /km).
  */
 export function readComment(comment: string | undefined, distanceKm: number): ObjectiveHints {
   const text = (comment ?? "").toLowerCase();
@@ -45,6 +48,17 @@ export function readComment(comment: string | undefined, distanceKm: number): Ob
     ...(easy ? { easy: true } : {}),
   };
   if (easy) return hints;
+  // Une allure (« 4:25/km », « 4:25 - 4:30 /km ») donne le temps visé : allure × distance.
+  const pace =
+    /(\d{1,2})\s*[:'’]\s*(\d{2})(?:\s*(?:-|–|à)\s*(\d{1,2})\s*[:'’]\s*(\d{2}))?\s*(?:min)?\s*\/\s*km/.exec(
+      text,
+    );
+  if (pace) {
+    const a = Number(pace[1]) * 60 + Number(pace[2]);
+    const b = pace[3] ? Number(pace[3]) * 60 + Number(pace[4]) : a;
+    const sec = (a + b) / 2;
+    if (sec >= 150 && sec <= 600) return { ...hints, targetSec: Math.round(sec * distanceKm) };
+  }
   const candidates: number[] = [];
   for (const m of text.matchAll(/(\d{1,2})\s*h\s*(\d{2})?(?!\d)/g)) {
     candidates.push(Number(m[1]) * 3600 + Number(m[2] ?? 0) * 60);
@@ -225,3 +239,64 @@ export const objectivesOn = (state: AppState, date: ISODate): Objective[] =>
 /** Prochain objectif à venir (aujourd'hui compris). */
 export const nextObjective = (state: AppState, today: ISODate): Objective | null =>
   [...(state.objectives ?? [])].sort(byDate).find((o) => o.date >= today) ?? null;
+
+/** Type de plan le plus proche de la distance d'une course (le trail couvre au-delà du semi). */
+export function goalForDistance(km: number): Goal {
+  return km <= 6 ? "5k" : km <= 12 ? "10k" : km <= 25 ? "semi" : "trail";
+}
+
+/** Objectif que le plan doit préparer : le prochain principal, sinon le prochain objectif. */
+export function targetObjective(state: AppState, today: ISODate): Objective | null {
+  const next = [...(state.objectives ?? [])].sort(byDate).filter((o) => o.date > today);
+  return next.find((o) => o.priority === "principal") ?? next[0] ?? null;
+}
+
+/**
+ * Recalcule le plan pour qu'il se termine par l'objectif : même date de début, autant de
+ * semaines qu'il en faut jusqu'à la course, type de plan choisi selon sa distance, et course
+ * placée la dernière semaine à la place du test. Les semaines déjà commencées, ou qui ont des
+ * retours, sont gardées telles quelles ; les suivantes sont regénérées.
+ */
+export function planForObjective(state: AppState, today: ISODate): ObjectiveResult {
+  const o = targetObjective(state, today);
+  if (!o) throw new Error("Ajoute d'abord un objectif à venir.");
+  const raceWeek = Math.floor(daysBetween(state.startDate, o.date) / 7) + 1;
+  if (raceWeek < 1) throw new Error(`${o.label} tombe avant le début du plan.`);
+  if (raceWeek > RULES.maxWeeks) {
+    throw new Error(
+      `${o.label} est dans plus de ${RULES.maxWeeks} semaines : le plan ne peut pas aller aussi loin.`,
+    );
+  }
+  const total = Math.max(RULES.minWeeks, raceWeek);
+  const goal = goalForDistance(o.distanceKm);
+  const profile = { ...state.plan.profile, goal, weeks: total };
+  const fresh = generatePlan(profile);
+
+  // Semaines gardées : celles déjà commencées avec un retour, et toutes celles d'avant.
+  const pos = position(state.startDate, today, state.plan.weeks.length);
+  const current = pos.status === "en-cours" ? pos.weekIndex : pos.status === "avant" ? 1 : total;
+  const rated = (w: number) =>
+    isReviewed(state, w) ||
+    (state.plan.weeks[w - 1]?.sessions ?? []).some((s) => state.feedback[feedbackKey(w, s.day)]);
+  const keep = Math.min(total - 1, rated(current) ? current : current - 1);
+  const weeks = [
+    ...state.plan.weeks.slice(0, keep).map((w) => ({ ...w, objective: undefined })),
+    ...fresh.weeks.slice(keep),
+  ];
+  const next = applyObjectives({ ...state, plan: { profile, weeks, objectives: [] } }, today);
+  const label = { "5k": "5 km", "10k": "10 km", semi: "semi-marathon", trail: "trail" }[goal];
+  const understood = hintsText(readComment(o.comment, o.distanceKm), o.distanceKm);
+  const message =
+    `Plan recalculé pour ${o.label} : ${total} semaines, course ${formatLong(o.date)} en semaine ${raceWeek}, ` +
+    `progression d'un plan ${label}.` +
+    (keep === 1
+      ? " La première semaine est gardée."
+      : keep
+        ? ` Les ${keep} premières semaines sont gardées.`
+        : "") +
+    (understood.length ? ` D'après ton commentaire : ${understood.join(" ; ")}.` : "") +
+    (o.distanceKm > 42.2
+      ? ` Attention : pour ${o.distanceKm} km, le plan le plus long de l'app est le trail court, avec une sortie longue de 1 h 30 à 1 h 50. C'est une base, pas une préparation complète d'ultra.`
+      : "");
+  return { state: next, message };
+}
