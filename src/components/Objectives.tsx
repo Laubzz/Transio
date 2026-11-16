@@ -3,7 +3,13 @@
 import { useState } from "react";
 import type { ObjectivePriority } from "@/engine";
 import { daysBetween, formatLong, type ISODate } from "@/lib/dates";
-import { preparedBy, removeObjective, saveObjective } from "@/lib/objectives";
+import {
+  hintsText,
+  preparedBy,
+  readComment,
+  removeObjective,
+  saveObjective,
+} from "@/lib/objectives";
 import type { AppState } from "@/lib/state";
 import { saveState } from "@/lib/store";
 import { INPUT } from "./FormParts";
@@ -26,6 +32,7 @@ export function ObjectivesCard({ state, today }: { state: AppState; today: ISODa
   const [distance, setDistance] = useState(10);
   const [custom, setCustom] = useState(15);
   const [priority, setPriority] = useState<ObjectivePriority>("principal");
+  const [comment, setComment] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const list = state.objectives ?? [];
@@ -75,6 +82,12 @@ export function ObjectivesCard({ state, today }: { state: AppState; today: ISODa
                         : " · passé"}
                     {o.priority === "secondaire" && ` · prépare ${preparedBy(state, o)}`}
                   </p>
+                  {o.comment && <p className="mt-1 text-muted italic">« {o.comment} »</p>}
+                  {hintsText(readComment(o.comment, o.distanceKm), o.distanceKm).map((t) => (
+                    <p key={t} className="mt-1 text-xs first-letter:uppercase">
+                      → {t}
+                    </p>
+                  ))}
                 </div>
                 <Button
                   variant="ghost"
@@ -113,7 +126,7 @@ export function ObjectivesCard({ state, today }: { state: AppState; today: ISODa
             try {
               const r = saveObjective(
                 state,
-                { label, date, distanceKm: distance || custom, priority },
+                { label, date, distanceKm: distance || custom, priority, comment },
                 today,
               );
               saveState(r.state);
@@ -122,6 +135,7 @@ export function ObjectivesCard({ state, today }: { state: AppState; today: ISODa
               setOpen(false);
               setLabel("");
               setDate("");
+              setComment("");
             } catch (err) {
               setError((err as Error).message);
             }
@@ -163,6 +177,29 @@ export function ObjectivesCard({ state, today }: { state: AppState; today: ISODa
               />
             </label>
           )}
+          <label className="block">
+            <span className="mb-2 block text-sm font-semibold">
+              Commentaire <span className="font-normal text-muted">(facultatif)</span>
+            </span>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="ex. parcours vallonné, je vise 45:00 ; ou : première course, juste finir"
+              className={`${INPUT} resize-y`}
+            />
+            <span className="mt-1 block text-xs text-muted">
+              Un temps visé règle l&apos;allure des séances qui préparent la course. Un parcours
+              vallonné ajoute du dénivelé. « Première course » ou « juste finir » enlève le chrono.
+            </span>
+            {comment.trim() &&
+              hintsText(readComment(comment, distance || custom), distance || custom).map((t) => (
+                <span key={t} className="mt-1 block text-xs first-letter:uppercase">
+                  → {t}
+                </span>
+              ))}
+          </label>
           <Segmented
             label="Type d'objectif"
             value={priority}

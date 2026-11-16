@@ -4,7 +4,7 @@ import {
   buildWorkout,
   formatDuration,
   sessionDescription,
-  target,
+  blockTarget,
   type Profile,
   type Session,
   type Week,
@@ -28,7 +28,7 @@ export function workoutText(profile: Profile, week: Week, s: Session): string[] 
         : b.workSec > 0
           ? `${b.label} : ${work}`
           : b.label;
-    lines.push(`• ${head} — ${INTENSITY_LABEL[b.intensity]} : ${target(profile, b.intensity)}`);
+    lines.push(`• ${head} — ${INTENSITY_LABEL[b.intensity]} : ${blockTarget(profile, b)}`);
   }
   for (const e of w.exercises) lines.push(`• ${e.name} : ${e.sets} × ${e.reps}`);
   if (w.notes.length) lines.push("", ...w.notes);

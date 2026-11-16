@@ -1,4 +1,4 @@
-import { formatPaceRange, paces, type Intensity } from "./paces";
+import { formatPace, formatPaceRange, paces, type Intensity } from "./paces";
 import {
   GOAL_PACE_COOLDOWN_MIN,
   GOAL_PACE_WARMUP_MIN,
@@ -22,6 +22,8 @@ export interface RunBlock {
   recoveryIntensity?: Intensity;
   /** Distance d'une répétition, quand le bloc se court au kilomètre. */
   distanceM?: number;
+  /** Allure visée en s/km, quand elle vient du temps visé sur une course objectif. */
+  paceSec?: number;
 }
 
 export interface Exercise {
@@ -79,10 +81,20 @@ export function target(profile: Profile, intensity: Intensity): string {
   return INTENSITY_FEEL[intensity];
 }
 
+/** Allure d'un bloc : celle du temps visé sur la course préparée, sinon celle du profil. */
+export function blockTarget(profile: Profile, b: RunBlock): string {
+  return b.paceSec ? `${formatPace(b.paceSec)} /km` : target(profile, b.intensity);
+}
+
 /** Blocs au kilomètre à l'allure objectif qui tiennent dans le temps de travail disponible. */
-function goalPaceBlocks(profile: Profile, week: Week, workMin: number): RunBlock[] | null {
-  const pace = goalPaceSec(profile);
-  const step = goalPaceStep(profile, qualityRank(profile, week.index), workMin);
+function goalPaceBlocks(
+  profile: Profile,
+  week: Week,
+  workMin: number,
+  racePace?: number,
+): RunBlock[] | null {
+  const pace = racePace ?? goalPaceSec(profile);
+  const step = goalPaceStep(profile, qualityRank(profile, week.index), workMin, pace);
   if (!pace || !step) return null;
   const block = (km: number, repeat: number, last: boolean): RunBlock => ({
     type: "run",
@@ -91,6 +103,7 @@ function goalPaceBlocks(profile: Profile, week: Week, workMin: number): RunBlock
     workSec: Math.round(km * pace),
     intensity: "objectif",
     distanceM: km * 1000,
+    ...(racePace ? { paceSec: Math.round(racePace) } : {}),
     ...(repeat > 1 || !last
       ? { recoverySec: goalPaceRecovery(km), recoveryIntensity: "endurance" }
       : {}),
@@ -135,7 +148,11 @@ function runBlocks(profile: Profile, week: Week, s: Session): RunBlock[] {
       return [cont("Footing", d, "endurance")];
     case "sortie-longue": {
       if (week.phase === "specifique" && !week.deload && d >= 40) {
-        return [cont("Sortie longue", d - 10, "endurance"), cont("Fin de sortie", 10, "objectif")];
+        const end = cont("Fin de sortie", 10, "objectif");
+        return [
+          cont("Sortie longue", d - 10, "endurance"),
+          s.racePaceSec ? { ...end, paceSec: Math.round(s.racePaceSec) } : end,
+        ];
       }
       return [cont("Sortie longue", d, "endurance")];
     }
@@ -145,7 +162,12 @@ function runBlocks(profile: Profile, week: Week, s: Session): RunBlock[] {
       // Dès la phase rythme, la séance se court à l'allure de la course visée, au kilomètre.
       const goal = week.deload
         ? null
-        : goalPaceBlocks(profile, week, d - GOAL_PACE_WARMUP_MIN - GOAL_PACE_COOLDOWN_MIN);
+        : goalPaceBlocks(
+            profile,
+            week,
+            d - GOAL_PACE_WARMUP_MIN - GOAL_PACE_COOLDOWN_MIN,
+            s.racePaceSec,
+          );
       if (goal) {
         // Le temps qui reste allonge l'échauffement (jusqu'à 20 min), puis le retour au calme.
         const used = goal.reduce((t, x) => t + x.repeat * x.workSec + recoveries(x), 0) / 60;
@@ -200,7 +222,11 @@ function runBlocks(profile: Profile, week: Week, s: Session): RunBlock[] {
       const short = (o?.distanceKm ?? 10) <= 5;
       return [
         cont("Échauffement", short ? 15 : 10, "endurance"),
-        { ...cont(`Course : ${o?.label ?? "objectif"}`, 0, "objectif"), workSec: 0 },
+        {
+          ...cont(`Course : ${o?.label ?? "objectif"}`, 0, "objectif"),
+          workSec: 0,
+          ...(s.racePaceSec ? { paceSec: Math.round(s.racePaceSec) } : {}),
+        },
         cont("Retour au calme", 5, "marche"),
       ];
     }
@@ -417,9 +443,17 @@ export function buildWorkout(profile: Profile, week: Week, s: Session): Workout 
   if (s.kind === "test") notes.push("Note ton temps : il servira à recalculer tes allures.");
   if (s.objective) {
     notes.push(
-      s.objective.priority === "principal"
-        ? "C'est le jour J : pars à ton allure objectif, pas plus vite, et accélère sur la fin si tu peux."
-        : `Course de préparation pour ${s.objective.prepFor ?? "ton objectif principal"} : cours à l'allure objectif, teste ta tenue et ton ravitaillement, et garde une petite réserve à l'arrivée.`,
+      s.objective.easy
+        ? "Pas de chrono visé : pars doucement, cours à l'aise et profite. L'objectif est de finir en forme."
+        : s.objective.priority === "principal"
+          ? "C'est le jour J : pars à ton allure objectif, pas plus vite, et accélère sur la fin si tu peux."
+          : `Course de préparation pour ${s.objective.prepFor ?? "ton objectif principal"} : cours à l'allure objectif, teste ta tenue et ton ravitaillement, et garde une petite réserve à l'arrivée.`,
+    );
+    if (s.objective.hilly)
+      notes.push("Parcours vallonné : ralentis dans les montées, relance en haut.");
+  } else if (s.racePaceSec) {
+    notes.push(
+      `Allure calée sur le temps que tu vises en course : ${formatPace(s.racePaceSec)} /km.`,
     );
   }
   return { blocks: runBlocks(profile, week, s), exercises: [], notes };

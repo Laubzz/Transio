@@ -101,6 +101,44 @@ export function raceMinutes(p: Profile, distanceKm: number): number {
   return Math.max(10, round5(min));
 }
 
+/**
+ * Course objectif que prépare une semaine : la prochaine course après elle, dans les
+ * 6 semaines avant un objectif principal ou les 3 avant un secondaire.
+ */
+function preparedRace(objectives: PlanObjective[] | undefined, week: number) {
+  return (objectives ?? [])
+    .filter((o) => {
+      const span =
+        o.priority === "principal" ? RULES.prepWeeksPrincipal : RULES.prepWeeksSecondaire;
+      return o.week > week && o.week - week <= span;
+    })
+    .sort((a, b) => a.week - b.week)[0];
+}
+
+/**
+ * Prépare les séances de course d'une semaine pour la course qui arrive, d'après son
+ * commentaire : allure de la course visée sur les séances de qualité et la fin de sortie
+ * longue, dénivelé et côtes pour un parcours vallonné.
+ */
+function prepareFor(sessions: Session[], race: PlanObjective | undefined): Session[] {
+  if (!race) return sessions;
+  const pace = race.targetSec && !race.easy ? race.targetSec / race.distanceKm : undefined;
+  let hills = race.hilly;
+  return sessions.map((s) => {
+    if (pace && (s.kind === "tempo" || s.kind === "sortie-longue")) s = { ...s, racePaceSec: pace };
+    if (race.hilly && s.kind === "sortie-longue") {
+      s = { ...s, note: `Sur un parcours vallonné, pour préparer ${race.label}.` };
+    } else if (hills && s.kind === "endurance") {
+      hills = false;
+      s = {
+        ...s,
+        note: `Termine par 6 × 20 s en côte, retour en trottinant : ${race.label} est vallonné.`,
+      };
+    }
+    return s;
+  });
+}
+
 /** Course objectif d'une semaine (le principal d'abord s'il y en a plusieurs). */
 function raceOf(objectives: PlanObjective[] | undefined, week: number): PlanObjective | undefined {
   const inWeek = (objectives ?? []).filter((o) => o.week === week);
@@ -317,7 +355,10 @@ export function sessionDescription(s: Session): string {
 function raceWeekRuns(profile: Profile, volume: WeekVolume, race: PlanObjective): Session[] {
   const n = profile.runDaysPerWeek;
   const principal = race.priority === "principal";
-  const raceMin = raceMinutes(profile, race.distanceKm);
+  // Un temps visé donne la durée de la course ; sinon, l'estimation depuis le temps sur 5 km.
+  const raceMin = race.targetSec
+    ? Math.max(10, round5(race.targetSec / 60))
+    : raceMinutes(profile, race.distanceKm);
   const others = RUN_DAYS[n].slice(0, n - 1).filter((d) => d !== race.day);
   const each = clamp(
     floor5((volume.minutes - raceMin) / Math.max(1, others.length)),
@@ -353,6 +394,7 @@ function raceWeekRuns(profile: Profile, volume: WeekVolume, race: PlanObjective)
       impact: true,
       description: SESSION_DESCRIPTION.objectif,
       objective,
+      ...(race.targetSec && !race.easy ? { racePaceSec: race.targetSec / race.distanceKm } : {}),
     },
   ];
 }
@@ -421,13 +463,14 @@ export function buildWeek(
     sessions.push({ ...s, description: sessionDescription(s) });
   }
   sessions.sort((a, b) => a.day - b.day);
+  const prepared = race ? sessions : prepareFor(sessions, preparedRace(objectives, index));
   return {
     index,
     phase,
     deload: volume.deload,
     // La semaine de test compte ses minutes réelles, test compris.
     runMinutes: phase === "test" && !race ? runMinutesOf({ sessions }) : volume.minutes,
-    sessions,
+    sessions: prepared,
     ...(race ? { objective: race.priority } : {}),
   };
 }

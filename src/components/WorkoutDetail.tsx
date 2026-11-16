@@ -3,7 +3,7 @@ import {
   buildWorkout,
   formatDuration,
   formatPace,
-  target,
+  blockTarget,
   type Profile,
   type RunBlock,
   type Session,
@@ -69,7 +69,7 @@ export function WorkoutDetail({
                   )}
                 </p>
                 <p className="text-muted">
-                  {INTENSITY_LABEL[b.intensity]} · {target(profile, b.intensity)}
+                  {INTENSITY_LABEL[b.intensity]} · {blockTarget(profile, b)}
                 </p>
               </div>
             </li>

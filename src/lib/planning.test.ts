@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { plannedLoad } from "@/engine";
+import { buildWorkout, plannedLoad } from "@/engine";
 import { VELO_TO_10K } from "@/engine/fixtures";
 import { analyseFeedback, autoReview, submitFeedback } from "./adapt";
 import { formByWeek } from "./form";
-import { applyObjectives, nextObjective, removeObjective, saveObjective } from "./objectives";
+import {
+  applyObjectives,
+  nextObjective,
+  readComment,
+  removeObjective,
+  saveObjective,
+} from "./objectives";
 import { addSession, freeDays, moveSession, removeSession, resizeSession } from "./planEdit";
 import { createState, feedbackKey, isReviewed, recordFeedback, type AppState } from "./state";
 
@@ -281,5 +287,68 @@ describe("analyse des retours", () => {
     }
     expect(isReviewed(s, 1)).toBe(false);
     expect(isReviewed(autoReview(s, "2026-01-12"), 1)).toBe(true);
+  });
+});
+
+describe("commentaire d'un objectif", () => {
+  it("lit un temps visé sous plusieurs formes, s'il donne une allure plausible", () => {
+    expect(readComment("Je vise 45:00 sur ce 10 km", 10)).toEqual({ targetSec: 2700 });
+    expect(readComment("objectif 1h45", 21.1)).toEqual({ targetSec: 6300 });
+    expect(readComment("44'30 si possible", 10)).toEqual({ targetSec: 2670 });
+    expect(readComment("sous les 50 min", 10)).toEqual({ targetSec: 3000 });
+    expect(readComment("départ à 10h", 10)).toEqual({});
+    expect(readComment("", 10)).toEqual({});
+  });
+
+  it("repère un parcours vallonné et une course pour finir", () => {
+    expect(readComment("Parcours vallonné avec 200 m de D+", 10)).toEqual({ hilly: true });
+    expect(readComment("Ma première course, juste finir en 50 min", 10)).toEqual({ easy: true });
+  });
+
+  it("prépare les 6 semaines avant l'objectif à l'allure du temps visé", () => {
+    const r = saveObjective(
+      fresh(),
+      {
+        date: "2026-03-15",
+        label: "10 km de Paris",
+        distanceKm: 10,
+        priority: "principal",
+        comment: "Parcours vallonné, je vise 45:00",
+      },
+      TODAY,
+    );
+    const s = r.state;
+    expect(r.message).toContain("temps visé 45:00, soit 4:30 /km");
+    expect(r.message).toContain("6 semaines avant la course");
+    const race = s.plan.weeks[9].sessions.find((x) => x.kind === "objectif")!;
+    expect(race.durationMin).toBe(45);
+    expect(race.racePaceSec).toBe(270);
+    // Semaines 4 à 9 : allure visée sur la qualité, dénivelé sur la sortie longue.
+    for (const w of s.plan.weeks.slice(3, 9)) {
+      const long = w.sessions.find((x) => x.kind === "sortie-longue")!;
+      expect(long.racePaceSec).toBe(270);
+      expect(long.note).toContain("vallonné");
+    }
+    expect(s.plan.weeks[2].sessions.some((x) => x.racePaceSec)).toBe(false);
+    const w = s.plan.weeks.find((x) => x.index >= 4 && x.sessions.some((y) => y.kind === "tempo"))!;
+    const tempo = w.sessions.find((x) => x.kind === "tempo")!;
+    const blocks = buildWorkout(s.plan.profile, w, tempo).blocks.filter((b) => b.distanceM);
+    expect(blocks[0]).toMatchObject({ paceSec: 270, workSec: 270 });
+  });
+
+  it("enlève l'allure visée quand le commentaire change", () => {
+    const base = {
+      date: "2026-03-15",
+      label: "10 km",
+      distanceKm: 10,
+      priority: "principal" as const,
+    };
+    let s = saveObjective(fresh(), { ...base, comment: "je vise 45:00" }, TODAY).state;
+    const id = s.objectives![0].id;
+    s = saveObjective(s, { ...base, id, comment: "première course" }, TODAY).state;
+    expect(s.plan.weeks.some((w) => w.sessions.some((x) => x.racePaceSec))).toBe(false);
+    const race = s.plan.weeks[9].sessions.find((x) => x.kind === "objectif")!;
+    const notes = buildWorkout(s.plan.profile, s.plan.weeks[9], race).notes.join(" ");
+    expect(notes).toContain("Pas de chrono visé");
   });
 });

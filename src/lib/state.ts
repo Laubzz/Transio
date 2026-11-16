@@ -74,6 +74,8 @@ export interface Objective {
   label: string;
   distanceKm: number;
   priority: ObjectivePriority;
+  /** Infos sur la course (parcours, temps visé…), lues pour préparer les semaines d'avant. */
+  comment?: string;
 }
 
 /** Séance faite hors plan. */

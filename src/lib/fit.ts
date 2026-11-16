@@ -28,7 +28,14 @@ const TEST_DISTANCE_M: Record<string, number | null> = {
 };
 
 /** Plage de vitesse en mm/s (unité brute FIT) pour une intensité, ou `null` (au ressenti). */
-function speedRange(profile: RunProfile, intensity: Intensity): [number, number] | null {
+function speedRange(
+  profile: RunProfile,
+  intensity: Intensity,
+  paceSec?: number,
+): [number, number] | null {
+  // Allure du temps visé sur une course : ± 4 s/km autour.
+  if (paceSec)
+    return [Math.round(1_000_000 / (paceSec + 4)), Math.round(1_000_000 / (paceSec - 4))];
   if (!profile.reference5kSec || intensity === "marche") return null;
   const p = paces(profile.reference5kSec, profile.goal);
   const range = intensity === "objectif" ? p.objectif : p[intensity];
@@ -51,8 +58,9 @@ interface Step {
 function targetFor(
   profile: RunProfile,
   intensity: Intensity,
+  paceSec?: number,
 ): Pick<Step, "targetType" | "targetValue" | "customTargetValueLow" | "customTargetValueHigh"> {
-  const r = speedRange(profile, intensity);
+  const r = speedRange(profile, intensity, paceSec);
   return r
     ? {
         targetType: "speed",
@@ -87,7 +95,7 @@ export function workoutSteps(profile: RunProfile, week: Week, session: Session):
         durationType: dist ? "distance" : "open",
         durationValue: dist ? dist * 100 : undefined, // centimètres
         intensity: "active",
-        ...targetFor(profile, b.intensity),
+        ...targetFor(profile, b.intensity, b.paceSec),
       });
       return;
     }
@@ -97,7 +105,7 @@ export function workoutSteps(profile: RunProfile, week: Week, session: Session):
       durationType: "time",
       durationValue: b.workSec * 1000, // millisecondes
       intensity: b.intensity === "marche" ? "recovery" : intensity,
-      ...targetFor(profile, b.intensity),
+      ...targetFor(profile, b.intensity, b.paceSec),
     });
     if (b.repeat > 1) {
       if (b.recoverySec) {

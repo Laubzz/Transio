@@ -1,4 +1,4 @@
-import { INTENSITY_LABEL, buildWorkout, formatDuration, target, type Phase } from "@/engine";
+import { INTENSITY_LABEL, buildWorkout, formatDuration, blockTarget, type Phase } from "@/engine";
 import { formatShort, position, sessionDate, type ISODate } from "@/lib/dates";
 import { KIND_LABEL, PHASE_LABEL } from "@/lib/labels";
 import type { AppState } from "@/lib/state";
@@ -102,7 +102,7 @@ export function QualitySessions({ state, today }: { state: AppState; today: ISOD
                           : ""}
                       <span className="text-muted">
                         {" "}
-                        — {INTENSITY_LABEL[b.intensity]} {target(p, b.intensity)}
+                        — {INTENSITY_LABEL[b.intensity]} {blockTarget(p, b)}
                       </span>
                     </div>
                   ))}

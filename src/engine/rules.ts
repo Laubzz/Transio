@@ -35,6 +35,9 @@ export const RULES = {
   minRunMin: 30,
   /** Durée minimale de la sortie longue, dès la première semaine. */
   minLongRunMin: 40,
+  /** Semaines de préparation spécifique avant un objectif principal, puis secondaire. */
+  prepWeeksPrincipal: 6,
+  prepWeeksSecondaire: 3,
   minWeeks: 6,
   maxWeeks: 24,
 } as const;
