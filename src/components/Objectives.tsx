@@ -5,10 +5,12 @@ import type { ObjectivePriority } from "@/engine";
 import { daysBetween, formatLong, type ISODate } from "@/lib/dates";
 import {
   hintsText,
+  planForObjective,
   preparedBy,
   readComment,
   removeObjective,
   saveObjective,
+  targetObjective,
 } from "@/lib/objectives";
 import type { AppState } from "@/lib/state";
 import { saveState } from "@/lib/store";
@@ -107,6 +109,43 @@ export function ObjectivesCard({ state, today }: { state: AppState; today: ISODa
             );
           })}
         </ul>
+      )}
+
+      {targetObjective(state, today) && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
+          <Button
+            variant="ghost"
+            className="px-4 py-2"
+            onClick={() => {
+              const o = targetObjective(state, today)!;
+              if (
+                !window.confirm(
+                  `Recalculer le plan pour qu'il prépare ${o.label} ? Les semaines à venir sont regénérées : les séances que tu as modifiées à la main y seront remplacées.`,
+                )
+              ) {
+                return;
+              }
+              try {
+                const r = planForObjective(state, today);
+                saveState(r.state);
+                setMessage(r.message);
+                setError(null);
+              } catch (err) {
+                setError((err as Error).message);
+              }
+            }}
+          >
+            ↻ Recalculer le plan pour {targetObjective(state, today)!.label}
+          </Button>
+          <span className="text-xs text-muted">
+            Le plan se termine par cette course et la prépare.
+          </span>
+        </div>
+      )}
+      {error && !open && (
+        <p className="mt-3 text-sm text-warn" role="alert">
+          {error}
+        </p>
       )}
 
       {message && (

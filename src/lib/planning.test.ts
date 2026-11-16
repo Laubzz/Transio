@@ -5,7 +5,9 @@ import { analyseFeedback, autoReview, submitFeedback } from "./adapt";
 import { formByWeek } from "./form";
 import {
   applyObjectives,
+  goalForDistance,
   nextObjective,
+  planForObjective,
   readComment,
   removeObjective,
   saveObjective,
@@ -350,5 +352,78 @@ describe("commentaire d'un objectif", () => {
     const race = s.plan.weeks[9].sessions.find((x) => x.kind === "objectif")!;
     const notes = buildWorkout(s.plan.profile, s.plan.weeks[9], race).notes.join(" ");
     expect(notes).toContain("Pas de chrono visé");
+  });
+});
+
+describe("recalculer le plan pour l'objectif", () => {
+  it("lit une allure visée et en déduit le temps", () => {
+    const comment =
+      "Backyard avec une boucle de 6km toutes les heures, 60km au total en visant 4:25 - 4:30/km";
+    expect(readComment(comment, 60)).toEqual({ targetSec: 60 * 267.5 });
+    expect(readComment("à 5:00 /km", 10)).toEqual({ targetSec: 3000 });
+  });
+
+  it("choisit le type de plan selon la distance", () => {
+    expect([5, 10, 21.1, 42.2, 60].map(goalForDistance)).toEqual([
+      "5k",
+      "10k",
+      "semi",
+      "trail",
+      "trail",
+    ]);
+  });
+
+  it("termine le plan par la course la plus proche, à l'allure visée", () => {
+    let s = createState({ ...VELO_TO_10K, goal: "5k", weeks: 12 }, "2026-11-16");
+    s = saveObjective(
+      s,
+      {
+        date: "2027-01-16",
+        label: "Backyard ESTP",
+        distanceKm: 60,
+        priority: "principal",
+        comment: "boucle de 6 km à 4:25 - 4:30/km",
+      },
+      "2026-11-16",
+    ).state;
+    const r = planForObjective(s, "2026-11-16");
+    const p = r.state.plan;
+    expect(p.profile.weeks).toBe(9);
+    expect(p.profile.goal).toBe("trail");
+    expect(p.weeks).toHaveLength(9);
+    const race = p.weeks[8].sessions.find((x) => x.kind === "objectif")!;
+    expect(race.objective?.label).toBe("Backyard ESTP");
+    expect(race.racePaceSec).toBeCloseTo(267.5);
+    expect(p.weeks[8].sessions.some((x) => x.kind === "test")).toBe(false);
+    expect(p.weeks[5].sessions.find((x) => x.kind === "sortie-longue")?.racePaceSec).toBeCloseTo(
+      267.5,
+    );
+    expect(r.message).toContain("9 semaines");
+    expect(r.message).toContain("pas une préparation complète d'ultra");
+  });
+
+  it("garde les semaines déjà notées", () => {
+    let s = createState(VELO_TO_10K, "2026-01-05");
+    s = recordFeedback(s, 1, 1, { done: true, rpe: 4 });
+    s = saveObjective(
+      s,
+      { date: "2026-03-08", label: "10 km", distanceKm: 10, priority: "principal" },
+      "2026-01-06",
+    ).state;
+    const r = planForObjective(s, "2026-01-06");
+    expect(r.state.plan.weeks[0]).toEqual({ ...s.plan.weeks[0], objective: undefined });
+    expect(r.state.feedback[feedbackKey(1, 1)]?.rpe).toBe(4);
+    expect(r.state.plan.weeks).toHaveLength(9);
+    expect(r.message).toContain("La première semaine est gardée");
+  });
+
+  it("refuse sans objectif à venir ou trop lointain", () => {
+    expect(() => planForObjective(fresh(), TODAY)).toThrow(/Ajoute d'abord/);
+    const far = saveObjective(
+      fresh(),
+      { date: "2026-12-20", label: "Loin", distanceKm: 10, priority: "principal" },
+      TODAY,
+    ).state;
+    expect(() => planForObjective(far, TODAY)).toThrow(/plus de 24 semaines/);
   });
 });
