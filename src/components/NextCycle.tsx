@@ -134,7 +134,9 @@ export function NextCycle() {
           className="w-32 rounded-lg border border-white/10 bg-night px-3 py-2.5 focus:border-ink focus:outline-none"
         />
         {!refOk && (
-          <span className="mt-1 block text-sm text-warn">Écris le temps sous la forme 27:30.</span>
+          <span className="mt-1 block text-sm text-warn">
+            Écris le temps sous la forme 27:30, 27.30 ou 2730.
+          </span>
         )}
       </label>
 

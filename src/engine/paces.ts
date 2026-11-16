@@ -54,9 +54,19 @@ export function formatPaceRange([fast, slow]: PaceRange): string {
   return fast === slow ? `${formatPace(fast)} /km` : `${formatPace(fast)}–${formatPace(slow)} /km`;
 }
 
-/** « 25:30 » ou « 1:02:15 » → secondes ; `null` si illisible. */
+/**
+ * « 25:30 » ou « 1:02:15 » → secondes ; `null` si illisible. Le pavé numérique d'un téléphone
+ * n'a pas de « : » : « 25.30 », « 25,30 », « 25 30 », « 25'30 » et « 2530 » sont aussi lus.
+ */
 export function parseDuration(text: string): number | null {
-  const m = /^\s*(?:(\d+):)?(\d{1,2}):(\d{2})\s*$/.exec(text);
+  const t = text.trim();
+  // Chiffres seuls : les 2 derniers sont les secondes, les 2 d'avant les minutes.
+  const digits = /^\d{3,6}$/.test(t)
+    ? t.replace(/^(\d*?)(\d{1,2})(\d{2})$/, (_, h, mm, ss) =>
+        h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`,
+      )
+    : t.replace(/\s*[.,'’\s]\s*/g, ":");
+  const m = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(digits);
   if (!m) return null;
   const [h, min, s] = [Number(m[1] ?? 0), Number(m[2]), Number(m[3])];
   if (s >= 60 || (m[1] !== undefined && min >= 60)) return null;

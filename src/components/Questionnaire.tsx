@@ -339,7 +339,7 @@ function QuestionnaireForm({ today, existing }: { today: ISODate; existing: AppS
             </span>
             {!ref5kOk && (
               <span className="mt-1 block text-sm text-warn">
-                Écris le temps sous la forme 27:30.
+                Écris le temps sous la forme 27:30, 27.30 ou 2730.
               </span>
             )}
           </label>
