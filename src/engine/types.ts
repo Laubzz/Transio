@@ -77,6 +77,12 @@ export interface PlanObjective {
   distanceKm: number;
   /** Pour un objectif secondaire : l'objectif principal qu'il prépare. */
   prepFor?: string;
+  /** Temps visé sur la course, en secondes (lu dans le commentaire). */
+  targetSec?: number;
+  /** Parcours vallonné : la préparation ajoute du dénivelé. */
+  hilly?: boolean;
+  /** Course pour finir ou découvrir : pas de chrono visé. */
+  easy?: boolean;
 }
 
 export type SessionKind =
@@ -110,6 +116,8 @@ export interface Session {
   mobility?: boolean;
   /** Séance programmée à la main, hors du plan généré. */
   custom?: boolean;
+  /** Allure visée en s/km, calée sur le temps visé d'une course objectif proche. */
+  racePaceSec?: number;
   /** Course objectif courue ce jour-là. */
   objective?: Omit<PlanObjective, "week" | "day">;
 }

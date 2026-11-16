@@ -50,8 +50,12 @@ export function goalPaceNeed(profile: Profile, rank: number): number | null {
  * Répétitions (en km) de la séance : la plus avancée de la progression, jusqu'au rang `rank`,
  * qui tient dans le temps de travail disponible ; à défaut, 2 × 1 km.
  */
-export function goalPaceStep(profile: Profile, rank: number, workMin: number): number[] | null {
-  const pace = goalPaceSec(profile);
+export function goalPaceStep(
+  profile: Profile,
+  rank: number,
+  workMin: number,
+  pace: number | null = goalPaceSec(profile),
+): number[] | null {
   if (!pace) return null;
   const upTo = GOAL_PACE_STEPS.slice(0, Math.min(rank, GOAL_PACE_STEPS.length - 1) + 1);
   return [...upTo].reverse().find((x) => cost(x, pace) <= workMin * 60 + 120) ?? [1, 1];

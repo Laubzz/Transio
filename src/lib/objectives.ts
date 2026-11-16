@@ -1,4 +1,13 @@
-import { GOAL_LABEL, lastBuildUpTo, rebuildFrom, startMinutes, type PlanObjective } from "@/engine";
+import {
+  GOAL_LABEL,
+  RULES,
+  formatDuration,
+  formatPace,
+  lastBuildUpTo,
+  rebuildFrom,
+  startMinutes,
+  type PlanObjective,
+} from "@/engine";
 import { daysBetween, formatLong, sessionDate, type ISODate } from "./dates";
 import { isReviewed, type AppState, type Objective } from "./state";
 
@@ -7,7 +16,67 @@ const same = (a: PlanObjective, b: PlanObjective) =>
   a.day === b.day &&
   a.priority === b.priority &&
   a.distanceKm === b.distanceKm &&
-  a.label === b.label;
+  a.label === b.label &&
+  a.targetSec === b.targetSec &&
+  !!a.hilly === !!b.hilly &&
+  !!a.easy === !!b.easy;
+
+/** Ce que le commentaire d'un objectif apprend sur la course. */
+export interface ObjectiveHints {
+  targetSec?: number;
+  hilly?: boolean;
+  easy?: boolean;
+}
+
+const HILLY = /d[ée]nivel|vallonn|c[ôo]tes?\b|mont[ée]es?|\bd\+|trail|montagne/i;
+const EASY = /premi[èe]re|d[ée]couv|finir|terminer|sans chrono|pas de chrono|plaisir|tranquille/i;
+
+/**
+ * Lit le commentaire d'un objectif, avec des règles simples : un temps visé (« 45:00 »,
+ * « 1h45 », « 44'30 », « 50 min »), un parcours vallonné, une course pour finir sans chrono.
+ * Un temps n'est retenu que s'il donne une allure plausible (2:30 à 10:00 /km).
+ */
+export function readComment(comment: string | undefined, distanceKm: number): ObjectiveHints {
+  const text = (comment ?? "").toLowerCase();
+  if (!text.trim()) return {};
+  const easy = EASY.test(text);
+  const hints: ObjectiveHints = {
+    ...(HILLY.test(text) ? { hilly: true } : {}),
+    ...(easy ? { easy: true } : {}),
+  };
+  if (easy) return hints;
+  const candidates: number[] = [];
+  for (const m of text.matchAll(/(\d{1,2})\s*h\s*(\d{2})?(?!\d)/g)) {
+    candidates.push(Number(m[1]) * 3600 + Number(m[2] ?? 0) * 60);
+  }
+  for (const m of text.matchAll(/(?:(\d{1,2}):)?(\d{1,3}):(\d{2})/g)) {
+    candidates.push(Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3]));
+  }
+  for (const m of text.matchAll(/(\d{1,3})\s*['’]\s*(\d{2})?/g)) {
+    candidates.push(Number(m[1]) * 60 + Number(m[2] ?? 0));
+  }
+  for (const m of text.matchAll(/(\d{1,3})\s*min/g)) candidates.push(Number(m[1]) * 60);
+  const target = candidates.find((sec) => {
+    const pace = sec / distanceKm;
+    return pace >= 150 && pace <= 600;
+  });
+  return target ? { ...hints, targetSec: target } : hints;
+}
+
+/** Ce que l'app a compris du commentaire, en clair. */
+export function hintsText(h: ObjectiveHints, distanceKm: number): string[] {
+  return [
+    ...(h.targetSec
+      ? [
+          `temps visé ${formatDuration(h.targetSec)}, soit ${formatPace(h.targetSec / distanceKm)} /km : les séances à l'allure objectif et la fin des sorties longues se font à cette allure`,
+        ]
+      : []),
+    ...(h.hilly
+      ? ["parcours vallonné : sorties longues avec du dénivelé et côtes en fin de footing"]
+      : []),
+    ...(h.easy ? ["course pour finir : pas de chrono visé, on vise la régularité"] : []),
+  ];
+}
 
 const byDate = (a: Objective, b: Objective) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
 
@@ -42,6 +111,7 @@ function planObjectives(state: AppState, today: ISODate): PlanObjective[] {
       label: o.label,
       distanceKm: o.distanceKm,
       ...(o.priority === "secondaire" ? { prepFor: preparedBy(state, o) } : {}),
+      ...readComment(o.comment, o.distanceKm),
     };
     const open =
       sessionDate(state.startDate, slot.week, 0) > today && !isReviewed(state, slot.week);
@@ -58,19 +128,27 @@ function planObjectives(state: AppState, today: ISODate): PlanObjective[] {
 export function applyObjectives(state: AppState, today: ISODate): AppState {
   const prev = state.plan.objectives ?? [];
   const next = planObjectives(state, today);
-  const changed = new Set<number>([
-    ...prev.filter((p) => !next.some((n) => same(n, p))).map((p) => p.week),
-    ...next.filter((n) => !prev.some((p) => same(n, p))).map((n) => n.week),
-  ]);
-  const open = [...changed].filter(
-    (w) => sessionDate(state.startDate, w, 0) > today && !isReviewed(state, w),
-  );
-  if (!open.length) return { ...state, plan: { ...state.plan, objectives: next } };
+  const changed = [
+    ...prev.filter((p) => !next.some((n) => same(n, p))),
+    ...next.filter((n) => !prev.some((p) => same(n, p))),
+  ];
+  const isOpen = (w: number) => sessionDate(state.startDate, w, 0) > today && !isReviewed(state, w);
+  const firstOpen = state.plan.weeks.find((w) => isOpen(w.index))?.index;
+  if (!changed.length || firstOpen === undefined) {
+    return { ...state, plan: { ...state.plan, objectives: next } };
+  }
+  // Les semaines de course, et celles qui les préparent, sont reconstruites.
+  const span = (o: PlanObjective) =>
+    o.priority === "principal" ? RULES.prepWeeksPrincipal : RULES.prepWeeksSecondaire;
+  const from = Math.max(firstOpen, Math.min(...changed.map((o) => o.week - span(o))));
+  const raceWeeks = changed.map((o) => o.week).filter(isOpen);
+  if (from > Math.max(...changed.map((o) => o.week))) {
+    return { ...state, plan: { ...state.plan, objectives: next } };
+  }
 
-  const from = Math.min(...open);
-  // Les semaines concernées repartent du plan généré : la course remplace les retouches.
+  // Les semaines de course repartent du plan généré : la course remplace les retouches.
   const weeks = state.plan.weeks.map((w) =>
-    open.includes(w.index) ? { ...w, edited: false, objective: undefined } : w,
+    raceWeeks.includes(w.index) ? { ...w, edited: false, objective: undefined } : w,
   );
   const plan = { ...state.plan, weeks, objectives: next };
   const first =
@@ -99,7 +177,14 @@ export function saveObjective(
     throw new RangeError("Distance entre 1 et 100 km.");
   }
   const id = o.id ?? `obj-${o.date}-${Math.random().toString(36).slice(2, 8)}`;
-  const clean: Objective = { ...o, id, label, distanceKm: Math.round(o.distanceKm * 10) / 10 };
+  const comment = o.comment?.trim().slice(0, 500) || undefined;
+  const clean: Objective = {
+    ...o,
+    id,
+    label,
+    distanceKm: Math.round(o.distanceKm * 10) / 10,
+    comment,
+  };
   const objectives = [...(state.objectives ?? []).filter((x) => x.id !== id), clean].sort(byDate);
   const next = applyObjectives({ ...state, objectives }, today);
 
@@ -117,7 +202,15 @@ export function saveObjective(
     : slot
       ? `${label} est enregistré comme ${role}. La semaine est déjà commencée : il s'affiche au calendrier, sans changer les séances.`
       : `${label} est enregistré comme ${role}. Il est hors du plan en cours : tu pourras le viser avec ton prochain cycle.`;
-  return { state: next, message };
+  const understood = hintsText(readComment(comment, clean.distanceKm), clean.distanceKm);
+  const prep =
+    clean.priority === "principal" ? RULES.prepWeeksPrincipal : RULES.prepWeeksSecondaire;
+  const analysis = !comment
+    ? ""
+    : understood.length
+      ? ` D'après ton commentaire : ${understood.join(" ; ")}.${placed ? ` Ça s'applique aux ${prep} semaines avant la course.` : ""}`
+      : " Ton commentaire est gardé, mais je n'y ai trouvé ni temps visé, ni parcours vallonné, ni course pour finir.";
+  return { state: next, message: message + analysis };
 }
 
 export function removeObjective(state: AppState, id: string, today: ISODate): AppState {
