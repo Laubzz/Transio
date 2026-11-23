@@ -32,6 +32,10 @@ export function workoutText(profile: Profile, week: Week, s: Session): string[] 
   }
   for (const e of w.exercises) lines.push(`• ${e.name} : ${e.sets} × ${e.reps}`);
   if (w.notes.length) lines.push("", ...w.notes);
+  for (const r of w.routines ?? []) {
+    lines.push("", `${r.title} (${r.when})`);
+    for (const e of r.exercises) lines.push(`• ${e.name} : ${e.sets} × ${e.reps}`);
+  }
   return lines;
 }
 

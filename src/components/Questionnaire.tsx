@@ -19,7 +19,14 @@ import { applyObjectives } from "@/lib/objectives";
 import { recentRunMinutes, restartState, type AppState } from "@/lib/state";
 import { saveState, useAppState, useToday } from "@/lib/store";
 import { useAccount } from "@/lib/sync";
-import { StrengthQuestions, maxStrength, type StrengthChoice } from "./StrengthQuestions";
+import {
+  StrengthQuestions,
+  maxStrength,
+  strengthChoiceOf,
+  strengthCount,
+  strengthFields,
+  type StrengthChoice,
+} from "./StrengthQuestions";
 import { Button, ButtonLink, Kicker, OptionCard, Segmented } from "./ui";
 
 const STEPS = ["Ton sport", "Ton corps", "Ton objectif", "Ta semaine"] as const;
@@ -84,12 +91,7 @@ function QuestionnaireForm({ today, existing }: { today: ISODate; existing: AppS
   const [start, setStart] = useState<string | null>(null);
   const [runDays, setRunDays] = useState<2 | 3 | 4>(p?.runDaysPerWeek ?? 3);
   const [keepOrigin, setKeepOrigin] = useState(p?.keepOriginSport ?? true);
-  const [strength, setStrength] = useState<StrengthChoice>({
-    haut: p?.strengthBlocks?.haut ?? 0,
-    bas: p?.strengthBlocks?.bas ?? (p ? p.strengthPerWeek : 1),
-    mobility: p?.mobility ?? false,
-    place: p?.strengthPlace ?? "maison",
-  });
+  const [strength, setStrength] = useState<StrengthChoice>(strengthChoiceOf(p));
   const [ref5k, setRef5k] = useState(p?.reference5kSec ? formatDuration(p.reference5kSec) : "");
 
   const ref5kSec = ref5k.trim() ? parseDuration(ref5k) : undefined;
@@ -104,7 +106,7 @@ function QuestionnaireForm({ today, existing }: { today: ISODate; existing: AppS
   const runNow = running ?? fromStrava;
   const keepsOrigin = origin !== "reprise" && keepOrigin;
   const strengthMax = maxStrength(runDays, keepsOrigin);
-  const strengthOk = strength.haut + strength.bas <= strengthMax;
+  const strengthOk = strengthCount(strength) <= strengthMax;
 
   const toggleInjury = (z: InjuryZone) =>
     setInjuries((cur) => {
@@ -127,10 +129,7 @@ function QuestionnaireForm({ today, existing }: { today: ISODate; existing: AppS
       weeks,
       runDaysPerWeek: runDays,
       keepOriginSport: keepsOrigin,
-      strengthPerWeek: strength.haut + strength.bas,
-      strengthBlocks: { haut: strength.haut, bas: strength.bas },
-      mobility: strength.mobility,
-      strengthPlace: strength.place,
+      ...strengthFields(strength),
       reference5kSec: ref5kSec ?? undefined,
       currentRunMinutes: runNow || undefined,
     };

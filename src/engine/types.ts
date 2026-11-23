@@ -40,6 +40,11 @@ export interface Profile {
   mobility?: boolean;
   /** Où se fait le renforcement (absent sur les anciens profils : « maison »). */
   strengthPlace?: StrengthPlace;
+  /**
+   * Mode « guide du coureur » : séances en salle et à la maison par semaine, plus des
+   * routines courtes autour des séances de course. Remplace les blocs haut/bas.
+   */
+  strengthSplit?: StrengthSplit;
   /** Minutes de course par semaine en ce moment (0 ou absent : ne court pas encore). */
   currentRunMinutes?: number;
   /** Temps de référence sur 5 km, en secondes, pour calculer les allures. */
@@ -55,6 +60,12 @@ export interface Profile {
 
 /** Renforcement à la maison (poids du corps), en salle de muscu, ou en alternant les deux. */
 export type StrengthPlace = "maison" | "salle" | "les-deux";
+
+/** Séances par semaine en salle et à la maison (mode guide du coureur). */
+export interface StrengthSplit {
+  salle: number;
+  maison: number;
+}
 
 /** Partie du corps travaillée par une séance de renforcement. */
 export type StrengthFocus = "haut" | "bas";
@@ -114,6 +125,10 @@ export interface Session {
   focus?: StrengthFocus;
   /** Séance de renforcement terminée par un bloc de mobilité. */
   mobility?: boolean;
+  /** Lieu d'une séance de renfo du guide du coureur. */
+  place?: "salle" | "maison";
+  /** Renfo du guide placé moins de 48 h avant une séance clé : version légère. */
+  light?: boolean;
   /** Séance programmée à la main, hors du plan généré. */
   custom?: boolean;
   /** Allure visée en s/km, calée sur le temps visé d'une course objectif proche. */

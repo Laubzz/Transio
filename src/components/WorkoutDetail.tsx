@@ -5,6 +5,7 @@ import {
   formatPace,
   blockTarget,
   type Profile,
+  type Exercise,
   type RunBlock,
   type Session,
   type Week,
@@ -77,28 +78,41 @@ export function WorkoutDetail({
         </ol>
       )}
 
-      {w.exercises.length > 0 && (
-        <ul className="divide-y divide-white/5 text-sm">
-          {w.exercises.map((e) => (
-            <li key={e.name} className="py-2">
-              <p className="flex justify-between gap-3 font-semibold">
-                <span>{e.name}</span>
-                <span className="whitespace-nowrap tabular-nums">
-                  {e.sets} × {e.reps}
-                </span>
-              </p>
-              <p className="text-muted">{e.cue}</p>
-            </li>
-          ))}
-        </ul>
-      )}
+      {w.exercises.length > 0 && <ExerciseList exercises={w.exercises} />}
 
       {w.notes.map((n) => (
         <p key={n} className="text-xs text-muted">
           {n}
         </p>
       ))}
+
+      {w.routines?.map((r) => (
+        <section key={r.title} className="rounded-xl bg-card-2 p-3">
+          <p className="text-sm font-semibold">{r.title}</p>
+          <p className="text-xs text-muted">{r.when}</p>
+          <ExerciseList exercises={r.exercises} />
+          {r.note && <p className="text-xs text-muted">{r.note}</p>}
+        </section>
+      ))}
     </div>
+  );
+}
+
+function ExerciseList({ exercises }: { exercises: Exercise[] }) {
+  return (
+    <ul className="divide-y divide-white/5 text-sm">
+      {exercises.map((e) => (
+        <li key={e.name} className="py-2">
+          <p className="flex justify-between gap-3 font-semibold">
+            <span>{e.name}</span>
+            <span className="whitespace-nowrap tabular-nums">
+              {e.sets} × {e.reps}
+            </span>
+          </p>
+          <p className="text-muted">{e.cue}</p>
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -18,6 +18,7 @@ import {
   TARGET_RPE,
 } from "./rules";
 import { goalPaceNeed } from "./goalPace";
+import { guideTotal, placeGuideStrength } from "./guide";
 import type {
   Phase,
   Plan,
@@ -61,7 +62,14 @@ export function validateProfile(p: Profile): void {
       throw new RangeError("Chaque bloc de renforcement se travaille de 0 à 3 fois par semaine.");
     }
   }
-  if (strengthBlocksOf(p).length > RULES.maxStrengthPerWeek) {
+  const split = p.strengthSplit;
+  if (split) {
+    const ok = (n: number) => Number.isInteger(n) && n >= 0 && n <= 3;
+    if (!ok(split.salle) || !ok(split.maison)) {
+      throw new RangeError("Salle et maison : de 0 à 3 séances par semaine chacune.");
+    }
+  }
+  if (strengthBlocksOf(p).length + guideTotal(p) > RULES.maxStrengthPerWeek) {
     throw new RangeError(
       `Pas plus de ${RULES.maxStrengthPerWeek} séances de renforcement par semaine.`,
     );
@@ -77,6 +85,7 @@ export function validateProfile(p: Profile): void {
  * `strengthPerWeek` séances de renfo « coureur ».
  */
 export function strengthBlocksOf(p: Profile): (StrengthFocus | undefined)[] {
+  if (p.strengthSplit) return [];
   if (!p.strengthBlocks) return Array(p.strengthPerWeek).fill(undefined);
   let { haut, bas } = p.strengthBlocks;
   const out: StrengthFocus[] = [];
@@ -347,6 +356,13 @@ export function sessionDescription(s: Session): string {
       : `Objectif secondaire : ${s.objective.label} (${s.objective.distanceKm} km), en préparation de ${s.objective.prepFor ?? "ton objectif principal"}`;
   }
   if (s.kind !== "renfo") return s.description || SESSION_DESCRIPTION[s.kind];
+  if (s.place) {
+    const base =
+      s.place === "salle"
+        ? "Renfo en salle : force générale, corps entier"
+        : "Renfo à la maison : jour dédié du guide (jambe par jambe, chevilles, hanches, tronc)";
+    return s.light ? `${base}, version légère (séance clé dans moins de 48 h)` : base;
+  }
   const base = s.focus ? STRENGTH_DESCRIPTION[s.focus] : SESSION_DESCRIPTION.renfo;
   return s.mobility ? `${base}, puis 10 min de mobilité` : base;
 }
@@ -461,6 +477,12 @@ export function buildWeek(
       ...(profile.mobility ? { mobility: true } : {}),
     };
     sessions.push({ ...s, description: sessionDescription(s) });
+  }
+  if (profile.strengthSplit) {
+    const raceWeek = Boolean(race) || phase === "test";
+    for (const s of placeGuideStrength(profile, sessions, free, lighten, raceWeek)) {
+      sessions.push({ ...s, description: sessionDescription(s) });
+    }
   }
   sessions.sort((a, b) => a.day - b.day);
   const prepared = race ? sessions : prepareFor(sessions, preparedRace(objectives, index));
