@@ -7,6 +7,7 @@ export {
   startMinutes,
   maxIncrease,
   validateProfile,
+  placeStrength,
   SESSION_DESCRIPTION,
   sessionDescription,
   strengthBlocksOf,

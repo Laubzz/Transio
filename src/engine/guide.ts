@@ -20,6 +20,8 @@ export interface GuideExercise {
 
 export interface Routine {
   title: string;
+  /** Libellé court pour le calendrier. */
+  short: string;
   /** Quand la faire et combien de temps. */
   when: string;
   exercises: GuideExercise[];
@@ -144,6 +146,7 @@ const E24 = ex(
 export function activation(withPogo: boolean): Routine {
   return {
     title: "Activation avant la séance",
+    short: "Avant : activation 5 à 8 min",
     when: "Avant l'échauffement, 5 à 8 min",
     exercises: [
       M4(),
@@ -160,6 +163,7 @@ export function activation(withPogo: boolean): Routine {
 /** Juste après un footing facile : le meilleur moment pour la prévention. */
 export const AFTER_EASY: Routine = {
   title: "Prévention après le footing",
+  short: "Après : renfo prévention 12 à 15 min",
   when: "Juste après, avant la douche, 12 à 15 min (2 tours)",
   exercises: [
     E1,
@@ -175,6 +179,7 @@ export const AFTER_EASY: Routine = {
 /** Le soir d'une séance dure : tronc et pieds seulement. */
 export const EVENING_HARD: Routine = {
   title: "Le soir : tronc et pieds",
+  short: "Le soir : renfo tronc et pieds 8 à 10 min",
   when: "Au moins 4 à 6 h après la séance, 8 à 10 min",
   exercises: [E19(3, "40 s"), E21(2, "10 par côté"), E22(2, "10 par côté"), E4(2, "8 × 5 s")],
   note: "Pas de pliométrie, de Nordic ni de descente excentrique : la séance a déjà sollicité les jambes.",
@@ -324,6 +329,7 @@ export function placeGuideStrength(
     out.push({
       day,
       kind: "renfo",
+      guide: true,
       place,
       durationMin: Math.max(15, Math.floor((minutes * lighten) / 5) * 5),
       targetRpe: TARGET_RPE.renfo,

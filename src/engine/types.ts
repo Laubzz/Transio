@@ -125,8 +125,10 @@ export interface Session {
   focus?: StrengthFocus;
   /** Séance de renforcement terminée par un bloc de mobilité. */
   mobility?: boolean;
-  /** Lieu d'une séance de renfo du guide du coureur. */
+  /** Lieu d'une séance de renfo. */
   place?: "salle" | "maison";
+  /** Séance de renfo du guide du coureur (salle corps entier ou jour dédié à la maison). */
+  guide?: boolean;
   /** Renfo du guide placé moins de 48 h avant une séance clé : version légère. */
   light?: boolean;
   /** Séance programmée à la main, hors du plan généré. */

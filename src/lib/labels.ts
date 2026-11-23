@@ -68,11 +68,16 @@ export function sessionLabel(kind: SessionKind, originLabel: string): string {
 /** Titre d'une séance : bloc de renfo travaillé, nom de la course objectif. */
 export function sessionTitle(s: Session, originLabel: string): string {
   if (s.objective) return s.objective.label;
-  if (s.kind === "renfo" && s.place) {
-    return `${s.place === "salle" ? "Renfo salle" : "Renfo maison"}${s.light ? " (léger)" : ""}`;
-  }
-  if (s.kind === "renfo" && s.focus) {
-    return s.focus === "haut" ? "Renfo haut du corps" : "Renfo bas du corps";
+  if (s.kind === "renfo") {
+    const where = s.place === "salle" ? "salle" : s.place === "maison" ? "maison" : "";
+    const light = s.light ? " (léger)" : "";
+    if (s.guide) {
+      return s.place === "salle"
+        ? `Renfo salle · corps entier${light}`
+        : `Renfo maison · séance dédiée${light}`;
+    }
+    const part = s.focus === "haut" ? "haut du corps" : s.focus === "bas" ? "bas du corps" : "";
+    if (part || where) return ["Renfo", part, where && `· ${where}`].filter(Boolean).join(" ");
   }
   return sessionLabel(s.kind, originLabel);
 }

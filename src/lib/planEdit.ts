@@ -2,8 +2,11 @@ import {
   RULES,
   SESSION_DESCRIPTION,
   TARGET_RPE,
+  placeStrength,
   plannedLoad,
   sessionDescription,
+  validateProfile,
+  type Profile,
   type Session,
   type SessionKind,
   type StrengthFocus,
@@ -277,4 +280,43 @@ export function freeDays(state: AppState, weekIndex: number, today: ISODate): nu
   return [0, 1, 2, 3, 4, 5, 6].filter(
     (d) => !taken.has(d) && sessionDate(state.startDate, weekIndex, d) >= today,
   );
+}
+
+/**
+ * Change le renforcement d'un plan en cours sans toucher à la course : les séances de renfo
+ * à venir (pas encore notées) sont retirées puis replacées selon le nouveau choix. Les
+ * semaines passées ou déjà faites ne bougent pas.
+ */
+export function changeStrength(
+  state: AppState,
+  fields: Partial<Profile>,
+  today: ISODate,
+): EditResult {
+  const profile: Profile = { ...state.plan.profile, ...fields };
+  validateProfile(profile);
+  let changed = 0;
+  const weeks = state.plan.weeks.map((w) => {
+    if (isReviewed(state, w.index)) return w;
+    const locked = (d: number) =>
+      sessionDate(state.startDate, w.index, d) < today ||
+      Boolean(state.feedback[feedbackKey(w.index, d)]);
+    if (locked(6)) return w;
+    const kept = w.sessions.filter((s) => s.kind !== "renfo" || s.custom || locked(s.day));
+    const race = kept.find((s) => s.kind === "objectif");
+    const taken = new Set(kept.map((s) => s.day));
+    const free = [0, 1, 2, 3, 4, 5, 6].filter(
+      (d) => !taken.has(d) && !locked(d) && !(race && d === race.day - 1),
+    );
+    const lighten = w.deload || w.phase === "test" ? RULES.deloadFactor : 1;
+    const raceWeek = Boolean(w.objective) || w.phase === "test";
+    const added = placeStrength(profile, w.index, kept, free, lighten, raceWeek);
+    changed++;
+    return { ...w, sessions: [...kept, ...added].sort((a, b) => a.day - b.day) };
+  });
+  return {
+    state: { ...state, plan: { ...state.plan, profile, weeks } },
+    message: changed
+      ? `Renforcement mis à jour sur ${changed} semaine${changed > 1 ? "s" : ""}. Les séances de course ne changent pas.`
+      : "Plus aucune semaine à venir à modifier.",
+  };
 }

@@ -12,7 +12,14 @@ import {
   removeObjective,
   saveObjective,
 } from "./objectives";
-import { addSession, freeDays, moveSession, removeSession, resizeSession } from "./planEdit";
+import {
+  addSession,
+  changeStrength,
+  freeDays,
+  moveSession,
+  removeSession,
+  resizeSession,
+} from "./planEdit";
 import { createState, feedbackKey, isReviewed, recordFeedback, type AppState } from "./state";
 
 const START = "2026-01-05"; // un lundi
@@ -425,5 +432,45 @@ describe("recalculer le plan pour l'objectif", () => {
       TODAY,
     ).state;
     expect(() => planForObjective(far, TODAY)).toThrow(/plus de 24 semaines/);
+  });
+});
+
+describe("changer le renfo d'un plan en cours", () => {
+  const blocks = {
+    ...VELO_TO_10K,
+    keepOriginSport: false,
+    strengthPerWeek: 3,
+    strengthBlocks: { haut: 2, bas: 1 },
+    strengthPlace: "les-deux" as const,
+  };
+  const guide = {
+    strengthPerWeek: 3,
+    strengthSplit: { salle: 2, maison: 1 },
+    strengthBlocks: undefined,
+  };
+
+  it("passe au guide du coureur à partir d'aujourd'hui, sans toucher à la course", () => {
+    const s = recordFeedback(createState(blocks, "2026-11-16"), 2, 0, { done: true, rpe: 5 });
+    const { state } = changeStrength(s, guide, "2026-11-24");
+    // Semaine 1 passée et lundi de la semaine 2 noté : inchangés.
+    expect(state.plan.weeks[0]).toEqual(s.plan.weeks[0]);
+    expect(state.plan.weeks[1].sessions.find((x) => x.day === 0)).toEqual(
+      s.plan.weeks[1].sessions.find((x) => x.day === 0),
+    );
+    for (const w of state.plan.weeks.slice(2)) {
+      const renfo = w.sessions.filter((x) => x.kind === "renfo");
+      if (w.phase !== "test") {
+        expect(renfo.map((x) => x.place).sort()).toEqual(["maison", "salle", "salle"]);
+      }
+      expect(renfo.every((x) => x.guide)).toBe(true);
+      const runs = (ss: typeof w.sessions) => ss.filter((x) => x.impact);
+      expect(runs(w.sessions)).toEqual(runs(s.plan.weeks[w.index - 1].sessions));
+    }
+  });
+
+  it("le mode blocs précise salle ou maison", () => {
+    const s = createState(blocks, "2026-11-16");
+    const places = s.plan.weeks[0].sessions.filter((x) => x.kind === "renfo").map((x) => x.place);
+    expect(places).toEqual(["maison", "salle", "maison"]);
   });
 });
