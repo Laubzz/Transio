@@ -18,7 +18,7 @@ import {
   TARGET_RPE,
 } from "./rules";
 import { goalPaceNeed } from "./goalPace";
-import { guideTotal, placeGuideStrength } from "./guide";
+import { MIN_HOME_MIN, guideTotal, placeGuideStrength } from "./guide";
 import type {
   Phase,
   Plan,
@@ -509,7 +509,10 @@ export function placeStrength(
     const s: Session = {
       day: free.shift()!,
       kind: "renfo",
-      durationMin: floor5((40 + (profile.mobility ? 10 : 0)) * lighten),
+      durationMin: Math.max(
+        place === "maison" ? MIN_HOME_MIN : 0,
+        floor5((40 + (profile.mobility ? 10 : 0)) * lighten),
+      ),
       targetRpe: TARGET_RPE.renfo,
       impact: false,
       description: SESSION_DESCRIPTION.renfo,

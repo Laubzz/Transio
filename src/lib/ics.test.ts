@@ -33,7 +33,9 @@ describe("export agenda (.ics)", () => {
       expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
     }
     const flat = unfold(ics);
-    expect(flat).toMatch(/SUMMARY:Transio · Course-marche · \d+ min/);
+    expect(flat).toMatch(/SUMMARY:🟤 Transio · Course-marche · \d+ min/);
+    expect(flat).toMatch(/COLOR:sienna/);
+    expect(flat).toMatch(/CATEGORIES:Course-marche/);
     expect(flat).toContain("Endurance : 6:30–7:00 /km");
     expect(flat).toContain("\\n");
   });
