@@ -71,3 +71,18 @@ describe("renfo du guide du coureur", () => {
     expect(() => generatePlan({ ...guide, strengthSplit: { salle: 3, maison: 2 } })).toThrow();
   });
 });
+
+describe("durée du renfo à la maison", () => {
+  it("dure au moins 40 min, même en semaine allégée ou de course", () => {
+    for (const p of [
+      guide,
+      { ...VELO_TO_10K, strengthPlace: "maison" as const, strengthPerWeek: 2 },
+    ]) {
+      for (const w of generatePlan(p).weeks) {
+        for (const s of w.sessions.filter((x) => x.place === "maison")) {
+          expect(s.durationMin).toBeGreaterThanOrEqual(40);
+        }
+      }
+    }
+  });
+});

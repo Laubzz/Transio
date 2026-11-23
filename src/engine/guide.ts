@@ -274,19 +274,19 @@ export function guideStrength(week: Week, s: Session): GuideStrength {
       ],
     };
   }
-  // Semaine de course : une seule séance courte, volume divisé par deux, ni Nordic ni excentrique.
+  // Semaine de course : ni Nordic, ni excentrique, ni pliométrie.
   const items = DEDICATED.filter((d) => !((s.light || raceWeek) && d.heavy));
   return {
     exercises: items.map(({ block, ex: e }) => ({
       ...e,
       name: `${block} · ${e.name}`,
-      sets: raceWeek ? Math.max(1, Math.ceil(e.sets / 2)) : e.sets,
+      sets: e.sets,
     })),
     notes: [
       "À la maison : jour dédié du guide. Bloc par bloc, 3 tours, 60 à 90 s de récupération entre les tours.",
       ...(raceWeek
         ? [
-            "Semaine de course : séance courte (15 min), volume divisé par deux, ni Nordic ni excentrique.",
+            "Semaine de course : sans Nordic, descentes excentriques ni pliométrie. Garde de la marge, rien jusqu'à l'échec.",
           ]
         : s.light
           ? ["Séance clé dans moins de 48 h : sans Nordic, descentes excentriques ni pliométrie."]
@@ -331,7 +331,11 @@ export function placeGuideStrength(
       kind: "renfo",
       guide: true,
       place,
-      durationMin: Math.max(15, Math.floor((minutes * lighten) / 5) * 5),
+      // Une séance à la maison dure au moins 40 min.
+      durationMin: Math.max(
+        place === "maison" ? MIN_HOME_MIN : 15,
+        Math.floor((minutes * lighten) / 5) * 5,
+      ),
       targetRpe: TARGET_RPE.renfo,
       impact: false,
       description: "",
@@ -339,9 +343,9 @@ export function placeGuideStrength(
     });
   };
   // Le jour dédié (excentrique, Nordic, pliométrie) prend le meilleur jour, la salle ensuite.
-  // Semaine de course : une seule séance courte à la maison.
+  // Semaine de course : une seule séance à la maison.
   for (let i = 0; i < (raceWeek ? Math.min(1, split.maison) : split.maison); i++) {
-    add("maison", raceWeek ? 15 : 45);
+    add("maison", 45);
   }
   for (let i = 0; i < split.salle; i++) add("salle", 50);
   return out;
@@ -349,5 +353,8 @@ export function placeGuideStrength(
 
 export const guideTotal = (p: Profile) =>
   p.strengthSplit ? p.strengthSplit.salle + p.strengthSplit.maison : 0;
+
+/** Durée minimale d'une séance de renfo à la maison, en minutes. */
+export const MIN_HOME_MIN = 40;
 
 export const MAX_GUIDE = RULES.maxStrengthPerWeek;
