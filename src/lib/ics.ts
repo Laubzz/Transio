@@ -7,10 +7,11 @@ import {
   blockTarget,
   type Profile,
   type Session,
+  type SessionKind,
   type Week,
 } from "@/engine";
 import { addDays, sessionDate } from "./dates";
-import { sessionTitle } from "./labels";
+import { KIND_LABEL, sessionTitle } from "./labels";
 import type { AppState } from "./state";
 
 /** Texte du détail d'une séance, pour la description de l'événement. */
@@ -38,6 +39,28 @@ export function workoutText(profile: Profile, week: Week, s: Session): string[] 
   }
   return lines;
 }
+
+/**
+ * Code couleur des séances dans l'agenda. Google Agenda et Apple Calendrier ignorent la
+ * couleur d'un événement venue d'un fichier .ics : une pastille de couleur en tête du titre
+ * marche partout. La propriété COLOR (RFC 7986) sert aux agendas qui la lisent.
+ */
+export const KIND_ICS: Record<SessionKind, { dot: string; color: string }> = {
+  "course-marche": { dot: "🟤", color: "sienna" },
+  endurance: { dot: "🟢", color: "seagreen" },
+  "sortie-longue": { dot: "🔵", color: "royalblue" },
+  tempo: { dot: "🟠", color: "darkorange" },
+  fractionne: { dot: "🔴", color: "crimson" },
+  test: { dot: "⚫", color: "black" },
+  objectif: { dot: "🟡", color: "gold" },
+  "sport-origine": { dot: "⚪", color: "gray" },
+  renfo: { dot: "🟣", color: "mediumpurple" },
+};
+
+/** Légende du code couleur, dans la description de l'agenda. */
+export const ICS_LEGEND = (Object.keys(KIND_ICS) as SessionKind[])
+  .map((k) => `${KIND_ICS[k].dot} ${KIND_LABEL[k]}`)
+  .join(" · ");
 
 const escape = (t: string) =>
   t.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
@@ -87,7 +110,7 @@ export function buildCalendar(state: AppState, opts: CalendarOptions): string {
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "X-WR-CALNAME:Transio",
-    "X-WR-CALDESC:Ton plan d'entraînement Transio",
+    `X-WR-CALDESC:${escape(`Ton plan d'entraînement Transio. ${ICS_LEGEND}`)}`,
     "REFRESH-INTERVAL;VALUE=DURATION:PT6H",
     "X-PUBLISHED-TTL:PT6H",
   ];
@@ -95,7 +118,7 @@ export function buildCalendar(state: AppState, opts: CalendarOptions): string {
   for (const week of plan.weeks) {
     for (const s of week.sessions) {
       const date = sessionDate(startDate, week.index, s.day);
-      const title = `Transio · ${sessionTitle(s, origin)} · ${s.durationMin} min`;
+      const title = `${KIND_ICS[s.kind].dot} Transio · ${sessionTitle(s, origin)} · ${s.durationMin} min`;
       const desc = [
         `Semaine ${week.index}${week.deload ? " (allégée)" : ""} · difficulté visée ${s.targetRpe}/10`,
         ...workoutText(p, week, s),
@@ -124,6 +147,8 @@ export function buildCalendar(state: AppState, opts: CalendarOptions): string {
       lines.push(
         `SUMMARY:${escape(title)}`,
         `DESCRIPTION:${escape(desc)}`,
+        `COLOR:${KIND_ICS[s.kind].color}`,
+        `CATEGORIES:${escape(KIND_LABEL[s.kind])}`,
         "TRANSP:TRANSPARENT",
         "END:VEVENT",
       );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { buildCalendar } from "@/lib/ics";
+import { ICS_LEGEND, buildCalendar } from "@/lib/ics";
 import type { AppState } from "@/lib/state";
 import { saveState } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
@@ -81,6 +81,7 @@ export function CalendarSync({ state }: { state: AppState }) {
       <p className="mt-1 text-sm text-muted">
         Chaque séance devient un événement, avec son détail et tes allures.
       </p>
+      <p className="mt-1 text-xs text-muted">Code couleur dans le titre : {ICS_LEGEND}.</p>
 
       <label className="mt-4 block">
         <span className="mb-1 block text-xs text-muted">Heure de tes séances</span>
