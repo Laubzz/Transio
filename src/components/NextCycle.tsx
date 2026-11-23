@@ -8,7 +8,14 @@ import { GOAL_HINT } from "@/lib/labels";
 import { applyObjectives } from "@/lib/objectives";
 import { planEnd, resumeMinutes, startNextCycle } from "@/lib/state";
 import { saveState, useAppState, useToday } from "@/lib/store";
-import { StrengthQuestions, maxStrength, type StrengthChoice } from "./StrengthQuestions";
+import {
+  StrengthQuestions,
+  maxStrength,
+  strengthChoiceOf,
+  strengthCount,
+  strengthFields,
+  type StrengthChoice,
+} from "./StrengthQuestions";
 import { Button, ButtonLink, Card, Kicker, OptionCard, Segmented } from "./ui";
 
 const GOALS = Object.keys(GOAL_LABEL) as Goal[];
@@ -41,14 +48,9 @@ export function NextCycle() {
   const refSec = refText.trim() ? parseDuration(refText) : undefined;
   const refOk = refSec !== null && (refSec === undefined || (refSec >= 12 * 60 && refSec <= 3600));
   const days = runDays ?? (g === "semi" ? Math.max(3, prev.runDaysPerWeek) : prev.runDaysPerWeek);
-  const str: StrengthChoice = strength ?? {
-    haut: prev.strengthBlocks?.haut ?? 0,
-    bas: prev.strengthBlocks?.bas ?? Math.min(3, prev.strengthPerWeek),
-    mobility: prev.mobility ?? false,
-    place: prev.strengthPlace ?? "maison",
-  };
+  const str: StrengthChoice = strength ?? strengthChoiceOf(prev);
   const keeps = prev.originSport !== "reprise" && (keepOrigin ?? prev.keepOriginSport);
-  const strengthOk = str.haut + str.bas <= maxStrength(days, keeps);
+  const strengthOk = strengthCount(str) <= maxStrength(days, keeps);
   const resume = Math.max(15 * days, resumeMinutes(state.plan));
 
   const launch = () => {
@@ -57,10 +59,7 @@ export function NextCycle() {
       weeks,
       startDate: mondayOf(start),
       runDaysPerWeek: days as 2 | 3 | 4,
-      strengthPerWeek: str.haut + str.bas,
-      strengthBlocks: { haut: str.haut, bas: str.bas },
-      mobility: str.mobility,
-      strengthPlace: str.place,
+      ...strengthFields(str),
       keepOriginSport: keeps,
       reference5kSec: refSec ?? undefined,
     });

@@ -68,6 +68,9 @@ export function sessionLabel(kind: SessionKind, originLabel: string): string {
 /** Titre d'une séance : bloc de renfo travaillé, nom de la course objectif. */
 export function sessionTitle(s: Session, originLabel: string): string {
   if (s.objective) return s.objective.label;
+  if (s.kind === "renfo" && s.place) {
+    return `${s.place === "salle" ? "Renfo salle" : "Renfo maison"}${s.light ? " (léger)" : ""}`;
+  }
   if (s.kind === "renfo" && s.focus) {
     return s.focus === "haut" ? "Renfo haut du corps" : "Renfo bas du corps";
   }

@@ -24,3 +24,4 @@ export { adjustPlan, decide, type Adjustment } from "./adjust";
 export * from "./load";
 export * from "./paces";
 export * from "./workout";
+export * from "./guide";

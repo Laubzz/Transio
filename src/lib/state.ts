@@ -444,6 +444,7 @@ export interface NextCycleChoice {
   strengthPerWeek: Profile["strengthPerWeek"];
   strengthPlace?: Profile["strengthPlace"];
   strengthBlocks?: Profile["strengthBlocks"];
+  strengthSplit?: Profile["strengthSplit"];
   mobility?: boolean;
   keepOriginSport: boolean;
   reference5kSec?: number;
@@ -470,6 +471,7 @@ export function startNextCycle(state: AppState, choice: NextCycleChoice): AppSta
     strengthPerWeek: choice.strengthPerWeek,
     strengthPlace: choice.strengthPlace ?? prev.strengthPlace,
     strengthBlocks: choice.strengthBlocks ?? prev.strengthBlocks,
+    strengthSplit: "strengthSplit" in choice ? choice.strengthSplit : prev.strengthSplit,
     mobility: choice.mobility ?? prev.mobility,
     keepOriginSport: choice.keepOriginSport,
     reference5kSec: choice.reference5kSec ?? prev.reference5kSec,

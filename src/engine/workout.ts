@@ -7,6 +7,7 @@ import {
   goalPaceStep,
 } from "./goalPace";
 import { qualityRank } from "./plan";
+import { guideStrength, routinesFor, type Routine } from "./guide";
 import { ORIGIN_LABEL } from "./rules";
 import type { Goal, Profile, Session, StrengthPlace, Week } from "./types";
 
@@ -27,6 +28,8 @@ export interface RunBlock {
 }
 
 export interface Exercise {
+  /** Code de l'exercice dans le guide du coureur (E1 à E24, M1 à M5). */
+  code?: string;
   name: string;
   sets: number;
   /** « 12 », « 10 par jambe », « 40 s »… */
@@ -42,6 +45,8 @@ export interface Workout {
   /** Où se fait le renfo, quand il y en a. */
   place?: Exclude<StrengthPlace, "les-deux">;
   notes: string[];
+  /** Routines courtes du guide du coureur autour d'une séance de course. */
+  routines?: Routine[];
 }
 
 export const INTENSITY_LABEL: Record<Intensity, string> = {
@@ -423,6 +428,9 @@ function strength(profile: Profile, week: Week, s: Session): Workout {
 
 /** Détail d'une séance : blocs de course avec allures, ou exercices de renfo. */
 export function buildWorkout(profile: Profile, week: Week, s: Session): Workout {
+  if (s.kind === "renfo" && s.place) {
+    return { blocks: [], place: s.place, ...guideStrength(week, s) };
+  }
   if (s.kind === "renfo") return strength(profile, week, s);
   if (s.kind === "sport-origine") {
     return {
@@ -456,5 +464,11 @@ export function buildWorkout(profile: Profile, week: Week, s: Session): Workout 
       `Allure calée sur le temps que tu vises en course : ${formatPace(s.racePaceSec)} /km.`,
     );
   }
-  return { blocks: runBlocks(profile, week, s), exercises: [], notes };
+  const routines = profile.strengthSplit ? routinesFor(week, s) : [];
+  return {
+    blocks: runBlocks(profile, week, s),
+    exercises: [],
+    notes,
+    ...(routines.length ? { routines } : {}),
+  };
 }
