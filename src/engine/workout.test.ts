@@ -91,9 +91,17 @@ describe("détail des séances", () => {
   });
 
   it("propose des exercices à la maison ou en salle selon le choix", () => {
-    const { w, s } = find("renfo");
-    const home = buildWorkout({ ...withRef, strengthPlace: "maison" }, w, s);
-    const gym = buildWorkout({ ...withRef, strengthPlace: "salle" }, w, s);
+    const detail = (strengthPlace: Profile["strengthPlace"]) => {
+      const p: Profile = { ...withRef, strengthPlace };
+      const w = generatePlan(p).weeks[4];
+      return buildWorkout(
+        p,
+        w,
+        w.sessions.find((x) => x.kind === "renfo")!,
+      );
+    };
+    const home = detail("maison");
+    const gym = detail("salle");
     expect(home.place).toBe("maison");
     expect(gym.place).toBe("salle");
     expect(home.exercises[0].name).toMatch(/Mollets/);
@@ -102,10 +110,12 @@ describe("détail des séances", () => {
 
   it("alterne maison et salle d'une semaine à l'autre avec « les deux »", () => {
     const p: Profile = { ...withRef, strengthPlace: "les-deux" };
-    const places = plan.weeks.slice(0, 4).map((w) => {
-      const s = w.sessions.find((x) => x.kind === "renfo")!;
-      return strengthPlaceFor(p, w, s);
-    });
+    const places = generatePlan(p)
+      .weeks.slice(0, 4)
+      .map((w) => {
+        const s = w.sessions.find((x) => x.kind === "renfo")!;
+        return strengthPlaceFor(p, w, s);
+      });
     expect(new Set(places)).toEqual(new Set(["maison", "salle"]));
     expect(places[0]).not.toBe(places[1]);
   });

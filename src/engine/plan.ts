@@ -356,7 +356,7 @@ export function sessionDescription(s: Session): string {
       : `Objectif secondaire : ${s.objective.label} (${s.objective.distanceKm} km), en préparation de ${s.objective.prepFor ?? "ton objectif principal"}`;
   }
   if (s.kind !== "renfo") return s.description || SESSION_DESCRIPTION[s.kind];
-  if (s.place) {
+  if (s.guide) {
     const base =
       s.place === "salle"
         ? "Renfo en salle : force générale, corps entier"
@@ -364,7 +364,8 @@ export function sessionDescription(s: Session): string {
     return s.light ? `${base}, version légère (séance clé dans moins de 48 h)` : base;
   }
   const base = s.focus ? STRENGTH_DESCRIPTION[s.focus] : SESSION_DESCRIPTION.renfo;
-  return s.mobility ? `${base}, puis 10 min de mobilité` : base;
+  const where = s.place ? `, ${s.place === "salle" ? "en salle" : "à la maison"}` : "";
+  return s.mobility ? `${base}${where}, puis 10 min de mobilité` : `${base}${where}`;
 }
 
 /** Séances de course d'une semaine de course objectif : la course, entourée de footings courts. */
@@ -464,26 +465,8 @@ export function buildWeek(
       description: `${ORIGIN_LABEL[profile.originSport]} : ${SESSION_DESCRIPTION["sport-origine"]}`,
     });
   }
-  for (const focus of strengthBlocksOf(profile)) {
-    if (!free.length) break;
-    const s: Session = {
-      day: free.shift()!,
-      kind: "renfo",
-      durationMin: floor5((40 + (profile.mobility ? 10 : 0)) * lighten),
-      targetRpe: TARGET_RPE.renfo,
-      impact: false,
-      description: SESSION_DESCRIPTION.renfo,
-      ...(focus ? { focus } : {}),
-      ...(profile.mobility ? { mobility: true } : {}),
-    };
-    sessions.push({ ...s, description: sessionDescription(s) });
-  }
-  if (profile.strengthSplit) {
-    const raceWeek = Boolean(race) || phase === "test";
-    for (const s of placeGuideStrength(profile, sessions, free, lighten, raceWeek)) {
-      sessions.push({ ...s, description: sessionDescription(s) });
-    }
-  }
+  const raceWeek = Boolean(race) || phase === "test";
+  sessions.push(...placeStrength(profile, index, sessions, free, lighten, raceWeek));
   sessions.sort((a, b) => a.day - b.day);
   const prepared = race ? sessions : prepareFor(sessions, preparedRace(objectives, index));
   return {
@@ -495,6 +478,48 @@ export function buildWeek(
     sessions: prepared,
     ...(race ? { objective: race.priority } : {}),
   };
+}
+
+/**
+ * Séances de renfo d'une semaine, placées sur les jours libres `free` (consommés) : guide du
+ * coureur (salle et maison loin des séances clés) ou blocs haut/bas dans l'ordre des jours.
+ */
+export function placeStrength(
+  profile: Profile,
+  index: number,
+  runs: Session[],
+  free: number[],
+  lighten: number,
+  raceWeek: boolean,
+): Session[] {
+  const out: Session[] = [];
+  if (profile.strengthSplit) {
+    for (const s of placeGuideStrength(profile, runs, free, lighten, raceWeek)) {
+      out.push({ ...s, description: sessionDescription(s) });
+      free.splice(free.indexOf(s.day), 1);
+    }
+    return out;
+  }
+  const where = profile.strengthPlace ?? "maison";
+  for (const focus of strengthBlocksOf(profile)) {
+    if (!free.length) break;
+    // « Les deux » alterne salle et maison d'une séance à l'autre.
+    const place =
+      where !== "les-deux" ? where : (index + out.length) % 2 === 0 ? "salle" : "maison";
+    const s: Session = {
+      day: free.shift()!,
+      kind: "renfo",
+      durationMin: floor5((40 + (profile.mobility ? 10 : 0)) * lighten),
+      targetRpe: TARGET_RPE.renfo,
+      impact: false,
+      description: SESSION_DESCRIPTION.renfo,
+      place,
+      ...(focus ? { focus } : {}),
+      ...(profile.mobility ? { mobility: true } : {}),
+    };
+    out.push({ ...s, description: sessionDescription(s) });
+  }
+  return out;
 }
 
 /** Volume de la dernière semaine de construction jusqu'à `upTo` inclus. */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ORIGIN_LABEL, plannedLoad, runMinutesOf } from "@/engine";
+import { ORIGIN_LABEL, plannedLoad, routinesFor, runMinutesOf } from "@/engine";
 import { formatShort, position, sessionDate } from "@/lib/dates";
 import { periodOn } from "@/lib/coaching";
 import { DAYS_SHORT, KIND_COLOR, PHASE_LABEL, sessionLabel, sessionTitle } from "@/lib/labels";
@@ -268,6 +268,16 @@ export function Planning() {
                         {s.durationMin} min · visé {s.targetRpe}/10
                       </span>
                       {s.note && <span className="text-xs text-origin">{s.note}</span>}
+                      {plan.profile.strengthSplit &&
+                        routinesFor(week, s).map((r) => (
+                          <span
+                            key={r.title}
+                            className="text-xs font-medium"
+                            style={{ color: KIND_COLOR.renfo }}
+                          >
+                            + {r.short}
+                          </span>
+                        ))}
                       <span className="mt-1">
                         <StatusBadge status={sessionStatus(state, weekIndex, s, date, today)} />
                       </span>

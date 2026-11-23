@@ -385,6 +385,7 @@ export function strengthPlaceFor(
   week: Week,
   s: Session,
 ): Exclude<StrengthPlace, "les-deux"> {
+  if (s.place) return s.place;
   const place = profile.strengthPlace ?? "maison";
   if (place !== "les-deux") return place;
   const order = week.sessions.filter((x) => x.kind === "renfo").indexOf(s);
@@ -428,7 +429,7 @@ function strength(profile: Profile, week: Week, s: Session): Workout {
 
 /** Détail d'une séance : blocs de course avec allures, ou exercices de renfo. */
 export function buildWorkout(profile: Profile, week: Week, s: Session): Workout {
-  if (s.kind === "renfo" && s.place) {
+  if (s.kind === "renfo" && s.guide && s.place) {
     return { blocks: [], place: s.place, ...guideStrength(week, s) };
   }
   if (s.kind === "renfo") return strength(profile, week, s);

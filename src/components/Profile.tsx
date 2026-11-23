@@ -26,7 +26,16 @@ import { supabase } from "@/lib/supabase";
 import { useAccount } from "@/lib/sync";
 import { removePeriod, savePeriod } from "@/lib/coaching";
 import { formatShort } from "@/lib/dates";
-import { guideSummary, strengthSummary } from "./StrengthQuestions";
+import { changeStrength } from "@/lib/planEdit";
+import {
+  StrengthQuestions,
+  guideSummary,
+  maxStrength,
+  strengthChoiceOf,
+  strengthCount,
+  strengthFields,
+  strengthSummary,
+} from "./StrengthQuestions";
 import { Button, ButtonLink, Card, Kicker } from "./ui";
 
 const PLACE_LABEL = {
@@ -115,6 +124,7 @@ export function Profile() {
         </ButtonLink>
       </Card>
 
+      <StrengthCard state={state} />
       <PaceCard state={state} />
       <PeriodsCard state={state} />
       <StravaCard state={state} />
@@ -142,6 +152,40 @@ export function Profile() {
         un avis médical.
       </p>
     </div>
+  );
+}
+
+/** Changer le renforcement du plan en cours, sans toucher aux séances de course. */
+function StrengthCard({ state }: { state: AppState }) {
+  const today = useToday();
+  const p = state.plan.profile;
+  const [choice, setChoice] = useState(() => strengthChoiceOf(p));
+  const [message, setMessage] = useState<string | null>(null);
+  const max = maxStrength(p.runDaysPerWeek, p.keepOriginSport && p.originSport !== "reprise");
+  return (
+    <Card>
+      <StrengthQuestions value={choice} onChange={setChoice} max={max} />
+      <Button
+        className="mt-4"
+        disabled={!today || strengthCount(choice) > max}
+        onClick={() => {
+          try {
+            const r = changeStrength(state, strengthFields(choice), today!);
+            saveState(r.state);
+            setMessage(r.message);
+          } catch (e) {
+            setMessage(e instanceof Error ? e.message : String(e));
+          }
+        }}
+      >
+        Appliquer à mon plan
+      </Button>
+      {message && (
+        <p className="mt-2 text-sm text-muted" role="status">
+          {message}
+        </p>
+      )}
+    </Card>
   );
 }
 
