@@ -50,3 +50,23 @@ describe("saisie d'une sortie de course", () => {
     expect(gym.strength).toEqual([{ exercise: "Squat", sets: 3, reps: 8, loadKg: 60 }]);
   });
 });
+
+describe("modifier une séance déjà faite", () => {
+  it("corrige le retour d'une semaine déjà bilantée sans toucher au plan", () => {
+    const s = createState(VELO_TO_10K, "2026-11-16");
+    const day = s.plan.weeks[0].sessions[0].day;
+    const noted = recordFeedback(s, 1, day, { done: true, rpe: 4 });
+    const reviewed = { ...noted, reviews: [{ weekIndex: 1 } as never] };
+    expect(() => recordFeedback(reviewed, 1, day, { done: true, rpe: 7 })).toThrow();
+    const fixed = recordFeedback(
+      reviewed,
+      1,
+      day,
+      { done: true, rpe: 7, doneType: "course", run: { distanceKm: 5 } },
+      { afterReview: true },
+    );
+    expect(fixed.feedback[feedbackKey(1, day)].rpe).toBe(7);
+    expect(fixed.feedback[feedbackKey(1, day)].run).toEqual({ distanceKm: 5 });
+    expect(fixed.plan).toBe(reviewed.plan);
+  });
+});

@@ -8,10 +8,13 @@ import { formatLong } from "@/lib/dates";
 import { RPE_LABEL, sessionLabel } from "@/lib/labels";
 import { longestStreak, personalBests, records } from "@/lib/records";
 import { cycles, type AppState } from "@/lib/state";
-import { useAppState } from "@/lib/store";
+import { DONE_TYPE_LABEL, runSummary } from "@/lib/runLog";
+import { saveState, useAppState, useToday } from "@/lib/store";
+import { FeedbackForm } from "./FeedbackForm";
+import { saveSessionFeedback, saveSessionMiss } from "./SessionPanel";
 import { FreeSessionCard } from "./FreeSession";
 import { StravaLink } from "./WorkoutDetail";
-import { ButtonLink, Card, Kicker, Segmented } from "./ui";
+import { Button, ButtonLink, Card, Kicker, Segmented } from "./ui";
 
 /** Écran « Journal » : les séances notées, et les records. */
 export function Journal() {
@@ -123,6 +126,9 @@ function Sessions({ state }: { state: AppState }) {
     journal({ ...state, ...c }).map((e) => ({ ...e, cycle: list.length - i })),
   );
   const several = (state.history?.length ?? 0) > 0;
+  const current = cycles(state).length;
+  const today = useToday();
+  const [editing, setEditing] = useState<string | null>(null);
   const frees = [...(state.freeSessions ?? [])].sort((a, b) => (a.date < b.date ? 1 : -1));
 
   if (all.length === 0 && frees.length === 0) {
@@ -148,8 +154,44 @@ function Sessions({ state }: { state: AppState }) {
       ))}
       {all.map((e) => {
         const fb = e.feedback;
+        const key = `${e.cycle}-${e.weekIndex}-${e.day}`;
+        // Seules les séances du cycle en cours se modifient (les anciens cycles sont archivés).
+        const session =
+          e.cycle === current
+            ? state.plan.weeks[e.weekIndex - 1]?.sessions.find((x) => x.day === e.day)
+            : undefined;
+        if (editing === key && session && today) {
+          const done = (next: AppState) => {
+            saveState(next);
+            setEditing(null);
+          };
+          return (
+            <li key={key}>
+              <Card className="p-4">
+                <p className="mb-4 font-semibold">
+                  {sessionLabel(e.kind, origin)} · {formatLong(e.date)}
+                </p>
+                <FeedbackForm
+                  state={state}
+                  weekIndex={e.weekIndex}
+                  session={session}
+                  today={today}
+                  candidates={(state.activities ?? []).filter(
+                    (a) => a.date === e.date && a.sport !== "autre",
+                  )}
+                  initial={fb}
+                  onSave={(next) =>
+                    done(saveSessionFeedback(state, e.weekIndex, e.day, today, next))
+                  }
+                  onMiss={(m) => done(saveSessionMiss(state, e.weekIndex, e.day, today, m))}
+                  onCancel={() => setEditing(null)}
+                />
+              </Card>
+            </li>
+          );
+        }
         return (
-          <li key={`${e.cycle}-${e.weekIndex}-${e.day}`}>
+          <li key={key}>
             <Card className="p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-semibold">{sessionLabel(e.kind, origin)}</p>
@@ -171,6 +213,10 @@ function Sessions({ state }: { state: AppState }) {
                     ` · ${MISS_CAUSE_LABEL[fb.missed.cause]} · ${MISS_ACTION_LABEL[fb.missed.action].toLowerCase()}`}
                 </p>
               )}
+              {fb.doneType && (
+                <p className="mt-1 text-sm text-muted">{DONE_TYPE_LABEL[fb.doneType]}</p>
+              )}
+              {fb.run && <p className="mt-1 text-sm text-muted">{runSummary(fb.run)}</p>}
               {fb.strength && (
                 <ul className="mt-2 space-y-0.5 text-sm text-muted">
                   {fb.strength.map((r) => (
@@ -182,6 +228,11 @@ function Sessions({ state }: { state: AppState }) {
                 </ul>
               )}
               {fb.comment && <p className="mt-2 text-sm text-muted">« {fb.comment} »</p>}
+              {session && (
+                <Button variant="ghost" className="mt-3 px-4 py-2" onClick={() => setEditing(key)}>
+                  Modifier
+                </Button>
+              )}
             </Card>
           </li>
         );
