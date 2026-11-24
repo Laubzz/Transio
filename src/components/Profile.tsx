@@ -283,18 +283,24 @@ function StravaCard({ state }: { state: AppState }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
   const signedIn = account.auth === "signed-in";
 
   useEffect(() => {
     if (!signedIn) return;
     let live = true;
     stravaStatus()
-      .then((s) => live && setStatus(s))
-      .catch(() => live && setStatus({ configured: false, connected: false }));
+      .then((s) => {
+        if (!live) return;
+        setStatus(s);
+        setStatusError(null);
+      })
+      .catch((e: Error) => live && setStatusError(e.message || "Strava ne répond pas."));
     return () => {
       live = false;
     };
-  }, [signedIn]);
+  }, [signedIn, retry]);
 
   const run = async (fn: () => Promise<string>) => {
     setBusy(true);
@@ -341,8 +347,24 @@ function StravaCard({ state }: { state: AppState }) {
       <h2 id="strava" className="scroll-mt-24 font-semibold">
         Strava
       </h2>
-      {!signedIn ? (
+      {account.auth === "disabled" ? (
         <p className="mt-1 text-sm text-muted">Crée un compte pour connecter Strava.</p>
+      ) : !signedIn ? (
+        <div className="mt-1 text-sm text-muted">
+          <p>Connecte-toi à ton compte pour importer tes activités Strava.</p>
+          <ButtonLink href="/connexion" className="mt-3">
+            Me connecter
+          </ButtonLink>
+        </div>
+      ) : statusError ? (
+        <div className="mt-1 text-sm">
+          <p className="text-warn" role="alert">
+            Impossible de vérifier Strava : {statusError}
+          </p>
+          <Button variant="ghost" className="mt-3" onClick={() => setRetry((n) => n + 1)}>
+            Réessayer
+          </Button>
+        </div>
       ) : !status ? (
         <p className="mt-1 text-sm text-muted">Vérification…</p>
       ) : !status.configured ? (
