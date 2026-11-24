@@ -1,5 +1,6 @@
 import type { Session } from "@/engine";
 import { addDays, sessionDate, type ISODate } from "./dates";
+import { cleanRun } from "./runLog";
 import {
   feedbackKey,
   isReviewed,
@@ -227,6 +228,7 @@ export function saveFreeSession(
     durationMin: Math.round(fs.durationMin),
     comment: fs.comment?.trim() || undefined,
     strength: fs.strength?.filter((r) => r.exercise.trim() && r.sets > 0 && r.reps > 0),
+    run: fs.sport === "course" ? cleanRun(fs.run) : undefined,
   };
   const list = (state.freeSessions ?? []).filter((x) => x.id !== id);
   return { ...state, freeSessions: [...list, clean].sort((a, b) => (a.date < b.date ? -1 : 1)) };

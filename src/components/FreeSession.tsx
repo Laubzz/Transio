@@ -4,6 +4,7 @@ import { useState } from "react";
 import { SENSATION_LABEL, removeFreeSession, saveFreeSession } from "@/lib/coaching";
 import { formatLong, type ISODate } from "@/lib/dates";
 import type { Activity, AppState, FreeSession, Sensation, StrengthSet } from "@/lib/state";
+import { runSummary, type RunLog } from "@/lib/runLog";
 import { saveState } from "@/lib/store";
 import {
   ActivityPicker,
@@ -11,6 +12,7 @@ import {
   EMPTY_ROW,
   INPUT,
   RpeSlider,
+  RunFields,
   SensationPicker,
   StrengthEditor,
 } from "./FormParts";
@@ -43,6 +45,7 @@ export function FreeSessionForm({
   const [sensation, setSensation] = useState<Sensation | undefined>(initial?.sensation);
   const [comment, setComment] = useState(initial?.comment ?? "");
   const [rows, setRows] = useState<StrengthSet[]>(initial?.strength ?? [EMPTY_ROW]);
+  const [run, setRun] = useState<RunLog>(initial?.run ?? {});
   const [activityId, setActivityId] = useState<number | undefined>(initial?.activityId);
   const [error, setError] = useState<string | null>(null);
   const candidates = (state.activities ?? []).filter((a) => a.date === date && a.sport !== "autre");
@@ -58,11 +61,13 @@ export function FreeSessionForm({
               id: initial?.id,
               date,
               sport,
-              durationMin: duration,
+              durationMin:
+                sport === "course" && run.timeSec ? Math.round(run.timeSec / 60) : duration,
               rpe,
               sensation,
               comment,
               strength: sport === "renfo" ? rows : undefined,
+              run: sport === "course" ? run : undefined,
               activityId,
             }),
           );
@@ -113,6 +118,7 @@ export function FreeSessionForm({
       />
       <RpeSlider value={rpe} onChange={setRpe} />
       <SensationPicker value={sensation} onChange={setSensation} />
+      {sport === "course" && <RunFields value={run} onChange={setRun} />}
       {sport === "renfo" && (
         <StrengthEditor state={state} date={date} rows={rows} onChange={setRows} />
       )}
@@ -165,6 +171,7 @@ export function FreeSessionCard({ state, fs }: { state: AppState; fs: FreeSessio
               {fs.durationMin} min · {fs.rpe}/10
               {fs.sensation && ` · ${SENSATION_LABEL[fs.sensation].toLowerCase()}`}
             </p>
+            {fs.run && <p className="text-muted">{runSummary(fs.run)}</p>}
             {fs.strength?.map((r) => (
               <p key={r.exercise} className="text-muted">
                 {r.exercise} · {r.sets} × {r.reps}

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { Pain, Session } from "@/engine";
+import { buildWorkout, type Pain, type Session } from "@/engine";
 import { MISS_ACTION_LABEL, MISS_CAUSE_LABEL, freeDayFor, proposeMiss } from "@/lib/coaching";
 import { formatLong, sessionDate, type ISODate } from "@/lib/dates";
+import { DONE_TYPE_LABEL, type DoneType, type RunLog } from "@/lib/runLog";
 import type {
   Activity,
   AppState,
@@ -19,6 +20,7 @@ import {
   EMPTY_ROW,
   INPUT,
   RpeSlider,
+  RunFields,
   SensationPicker,
   StrengthEditor,
 } from "./FormParts";
@@ -29,6 +31,24 @@ export interface MissChoice {
   action: MissAction;
   movedTo?: number;
   comment?: string;
+}
+
+/** Type de séance prévu, pour pré-choisir ce qui a été fait. */
+function plannedType(s: Session): DoneType | undefined {
+  if (s.kind === "renfo") return s.place === "salle" ? "salle" : "renfo";
+  return s.impact ? "course" : undefined;
+}
+
+/** Exercices prévus, sans le bloc du jour dédié, avec séries et reps lisibles. */
+function plannedRows(state: AppState, weekIndex: number, s: Session): StrengthSet[] {
+  if (s.kind !== "renfo") return [];
+  const w = buildWorkout(state.plan.profile, state.plan.weeks[weekIndex - 1], s);
+  return w.exercises.map((e) => ({
+    exercise: e.name.split(" · ").pop()!,
+    sets: e.sets,
+    reps: parseInt(e.reps, 10) || 0,
+    loadKg: 0,
+  }));
 }
 
 /**
@@ -71,8 +91,27 @@ export function FeedbackForm({
     initial?.durationMin ??
       (defaultActivity ? Math.round(defaultActivity.movingSec / 60) : session.durationMin),
   );
+  const planned = plannedRows(state, weekIndex, session);
+  const [doneType, setDoneType] = useState<DoneType | undefined>(
+    initial?.doneType ?? plannedType(session),
+  );
+  const [run, setRun] = useState<RunLog>(
+    initial?.run ??
+      (defaultActivity && defaultActivity.sport === "course"
+        ? {
+            distanceKm: Math.round(defaultActivity.distanceM / 10) / 100,
+            elevationM: defaultActivity.elevationM
+              ? Math.round(defaultActivity.elevationM)
+              : undefined,
+            timeSec: defaultActivity.movingSec,
+            paceSec: defaultActivity.distanceM
+              ? Math.round(defaultActivity.movingSec / (defaultActivity.distanceM / 1000))
+              : undefined,
+          }
+        : {}),
+  );
   const [rows, setRows] = useState<StrengthSet[]>(
-    initial?.strength ?? (session.kind === "renfo" ? [EMPTY_ROW] : []),
+    initial?.strength ?? (planned.length ? planned : [EMPTY_ROW]),
   );
   const [cause, setCause] = useState<MissCause | undefined>(initial?.missed?.cause);
   const [action, setAction] = useState<MissAction | undefined>(initial?.missed?.action);
@@ -103,14 +142,18 @@ export function FeedbackForm({
           if (missOk) onMiss({ cause: cause!, action: action!, movedTo, comment });
           return;
         }
+        const isRun = doneType === "course";
         onSave({
           done: true,
           rpe,
           pain,
           sensation,
           comment,
-          durationMin: duration,
-          strength: rows,
+          doneType,
+          // Pour une course, la durée vient du temps saisi.
+          durationMin: isRun && run.timeSec ? Math.round(run.timeSec / 60) : duration,
+          run: isRun ? run : undefined,
+          strength: doneType === "renfo" || doneType === "salle" ? rows : undefined,
           activityId: activity?.id,
         });
       }}
@@ -133,27 +176,48 @@ export function FeedbackForm({
             onChange={(a) => {
               setActivity(a);
               if (a) setDuration(Math.round(a.movingSec / 60));
+              if (a && a.sport === "course" && a.distanceM) {
+                setRun({
+                  distanceKm: Math.round(a.distanceM / 10) / 100,
+                  elevationM: a.elevationM ? Math.round(a.elevationM) : undefined,
+                  timeSec: a.movingSec,
+                  paceSec: Math.round(a.movingSec / (a.distanceM / 1000)),
+                });
+              }
             }}
           />
-          <label className="block">
-            <span className="mb-2 block text-sm font-semibold">
-              Durée faite{" "}
-              <span className="font-normal text-muted">
-                (prévue : {session.durationMin} min{activity ? ", remplie depuis Strava" : ""})
+          <Segmented
+            label="Type de séance faite"
+            value={doneType ?? ("" as DoneType)}
+            onChange={setDoneType}
+            options={(Object.keys(DONE_TYPE_LABEL) as DoneType[]).map((t) => ({
+              value: t,
+              label: DONE_TYPE_LABEL[t],
+            }))}
+          />
+          {doneType === "course" ? (
+            <RunFields key={activity?.id ?? "manuel"} value={run} onChange={setRun} />
+          ) : (
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold">
+                Durée faite{" "}
+                <span className="font-normal text-muted">
+                  (prévue : {session.durationMin} min{activity ? ", remplie depuis Strava" : ""})
+                </span>
               </span>
-            </span>
-            <span className="flex items-center gap-2">
-              <input
-                type="number"
-                min={1}
-                max={600}
-                value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
-                className={`${INPUT} w-24`}
-              />
-              <span className="text-sm text-muted">min</span>
-            </span>
-          </label>
+              <span className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={600}
+                  value={duration}
+                  onChange={(e) => setDuration(Number(e.target.value))}
+                  className={`${INPUT} w-24`}
+                />
+                <span className="text-sm text-muted">min</span>
+              </span>
+            </label>
+          )}
           <RpeSlider value={rpe} onChange={setRpe} target={session.targetRpe} />
           <SensationPicker value={sensation} onChange={setSensation} />
           <div>
@@ -174,8 +238,15 @@ export function FeedbackForm({
               </p>
             )}
           </div>
-          {session.kind === "renfo" && (
-            <StrengthEditor state={state} date={date} rows={rows} onChange={setRows} />
+          {(doneType === "renfo" || doneType === "salle") && (
+            <StrengthEditor
+              state={state}
+              date={date}
+              rows={rows}
+              onChange={setRows}
+              suggested={planned.map((r) => r.exercise)}
+              kind={doneType}
+            />
           )}
         </>
       ) : (

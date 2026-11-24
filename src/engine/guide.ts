@@ -358,3 +358,21 @@ export const guideTotal = (p: Profile) =>
 export const MIN_HOME_MIN = 40;
 
 export const MAX_GUIDE = RULES.maxStrengthPerWeek;
+
+/** Nom d'un exercice sans le bloc du jour dédié (« Force · Fente bulgare » → « Fente bulgare »). */
+const bare = (name: string) => name.split(" · ").pop()!;
+
+/** Exercices du guide (maison et routines) et de la séance en salle, pour les listes de choix. */
+export const EXERCISE_CATALOGUE: { salle: string[]; maison: string[] } = {
+  salle: GYM_FULL.map((e) => e.name),
+  maison: [
+    ...new Set(
+      [
+        ...DEDICATED.map((d) => d.ex),
+        ...AFTER_EASY.exercises,
+        ...activation(true).exercises,
+        ...EVENING_HARD.exercises,
+      ].map((e) => bare(e.name)),
+    ),
+  ],
+};
