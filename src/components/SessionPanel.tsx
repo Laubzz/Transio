@@ -7,14 +7,56 @@ import { formatLong, type ISODate } from "@/lib/dates";
 import { MISS_ACTION_LABEL, MISS_CAUSE_LABEL, SENSATION_LABEL, recordMissed } from "@/lib/coaching";
 import { autoReview, submitFeedback } from "@/lib/adapt";
 import { KIND_COLOR, KIND_LABEL, RPE_LABEL, sessionTitle } from "@/lib/labels";
-import { feedbackKey, isReviewed, matchActivity, recordFeedback, type AppState } from "@/lib/state";
+import {
+  feedbackKey,
+  isReviewed,
+  matchActivity,
+  recordFeedback,
+  type AppState,
+  type StoredFeedback,
+} from "@/lib/state";
 import { saveState } from "@/lib/store";
-import { FeedbackForm } from "./FeedbackForm";
+import { FeedbackForm, type MissChoice } from "./FeedbackForm";
 import { FitButton } from "./FitButton";
 import { ActivitySummary, WorkoutDetail } from "./WorkoutDetail";
 import { Button } from "./ui";
 
 export type SessionStatus = "a-venir" | "a-noter" | "faite" | "pas-faite";
+
+/**
+ * Enregistre le retour d'une séance. Semaine déjà bilantée : le retour est corrigé sans toucher
+ * au plan. Sinon il est analysé tout de suite et la suite du plan s'adapte.
+ */
+export function saveSessionFeedback(
+  state: AppState,
+  weekIndex: number,
+  day: number,
+  today: ISODate,
+  fb: StoredFeedback,
+): AppState {
+  return isReviewed(state, weekIndex)
+    ? recordFeedback(state, weekIndex, day, fb, { afterReview: true })
+    : submitFeedback(state, weekIndex, day, fb, today);
+}
+
+/** Enregistre une séance non faite (sans effet sur le plan si la semaine est bilantée). */
+export function saveSessionMiss(
+  state: AppState,
+  weekIndex: number,
+  day: number,
+  today: ISODate,
+  m: MissChoice,
+): AppState {
+  return isReviewed(state, weekIndex)
+    ? recordFeedback(
+        state,
+        weekIndex,
+        day,
+        { done: false, comment: m.comment, missed: { cause: m.cause, action: m.action } },
+        { afterReview: true },
+      )
+    : autoReview(recordMissed(state, weekIndex, day, m), today);
+}
 
 export function sessionStatus(
   state: AppState,
@@ -75,9 +117,8 @@ export function SessionPanel({
   const linked = candidates.find((a) => a.id === fb?.activityId) ?? activity;
   const [error, setError] = useState<string | null>(null);
 
-  const save = (next: Parameters<typeof recordFeedback>[3]) => {
-    // Le retour est analysé tout de suite : la suite du plan s'adapte.
-    saveState(submitFeedback(state, weekIndex, session.day, next, today));
+  const save = (next: StoredFeedback) => {
+    saveState(saveSessionFeedback(state, weekIndex, session.day, today, next));
     setEditing(false);
   };
 
@@ -160,7 +201,7 @@ export function SessionPanel({
               onSave={save}
               onMiss={(m) => {
                 try {
-                  saveState(autoReview(recordMissed(state, weekIndex, session.day, m), today));
+                  saveState(saveSessionMiss(state, weekIndex, session.day, today, m));
                   setEditing(false);
                   setError(null);
                 } catch (e) {
@@ -169,6 +210,12 @@ export function SessionPanel({
               }}
               onCancel={editing ? () => setEditing(false) : undefined}
             />
+            {locked && (
+              <p className="mt-2 text-xs text-muted">
+                Bilan de la semaine déjà fait : ta modification est enregistrée, le plan ne change
+                pas.
+              </p>
+            )}
             {error && <p className="mt-2 text-sm text-warn">{error}</p>}
           </>
         ) : fb ? (
@@ -190,12 +237,6 @@ export function SessionPanel({
                     <span className="block text-muted">{DONE_TYPE_LABEL[fb.doneType]}</span>
                   )}
                   {fb.run && <span className="block text-muted">{runSummary(fb.run)}</span>}
-                  {fb.strength?.map((r) => (
-                    <span key={r.exercise} className="block text-muted">
-                      {r.exercise} · {r.sets} × {r.reps}
-                      {r.loadKg > 0 && ` · ${String(r.loadKg).replace(".", ",")} kg`}
-                    </span>
-                  ))}
                 </>
               ) : (
                 <>
@@ -222,14 +263,17 @@ export function SessionPanel({
                 </span>
               )}
             </p>
-            {!locked && (
-              <Button variant="ghost" className="px-4 py-2" onClick={() => setEditing(true)}>
-                Modifier
-              </Button>
-            )}
+            <Button variant="ghost" className="px-4 py-2" onClick={() => setEditing(true)}>
+              Modifier
+            </Button>
           </div>
         ) : locked ? (
-          <p className="text-sm text-muted">Pas notée, comptée comme non faite au bilan.</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted">Pas notée, comptée comme non faite au bilan.</p>
+            <Button variant="ghost" className="px-4 py-2" onClick={() => setEditing(true)}>
+              Noter après coup
+            </Button>
+          </div>
         ) : (
           <Button className="px-4 py-2" onClick={() => setEditing(true)}>
             Noter ma séance

@@ -219,12 +219,14 @@ export function recordFeedback(
   weekIndex: number,
   day: number,
   fb: StoredFeedback,
+  /** Corriger une séance d'une semaine déjà bilantée : le retour change, pas le plan. */
+  opts: { afterReview?: boolean } = {},
 ): AppState {
   const week = state.plan.weeks[weekIndex - 1];
   if (!week?.sessions.some((s) => s.day === day)) {
     throw new RangeError(`Aucune séance prévue semaine ${weekIndex}, jour ${day}.`);
   }
-  if (isReviewed(state, weekIndex)) {
+  if (isReviewed(state, weekIndex) && !opts.afterReview) {
     throw new Error(`Le bilan de la semaine ${weekIndex} est déjà fait.`);
   }
   const clean: StoredFeedback = fb.done
@@ -241,6 +243,9 @@ export function recordFeedback(
         activityId: fb.activityId,
       }
     : { done: false, comment: fb.comment?.trim() || undefined, missed: fb.missed };
+  // Après le bilan, l'adaptation déjà faite reste affichée telle quelle.
+  const prev = state.feedback[feedbackKey(weekIndex, day)];
+  if (opts.afterReview && prev?.adapt) clean.adapt = prev.adapt;
   return { ...state, feedback: { ...state.feedback, [feedbackKey(weekIndex, day)]: clean } };
 }
 
