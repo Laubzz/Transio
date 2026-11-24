@@ -1,3 +1,4 @@
+import { cleanRun, type DoneType, type RunLog } from "./runLog";
 import {
   adjustPlan,
   generatePlan,
@@ -38,6 +39,10 @@ export interface MissedInfo {
 export interface StoredFeedback extends SessionFeedback {
   /** Durée réellement faite, en minutes (sinon la durée prévue). */
   durationMin?: number;
+  /** Type de séance réellement faite, quand il est précisé. */
+  doneType?: DoneType;
+  /** Sortie de course : distance, dénivelé, allure, temps. */
+  run?: RunLog;
   comment?: string;
   /** Exercices faits, pour une séance de renforcement. */
   strength?: StrengthSet[];
@@ -88,6 +93,8 @@ export interface FreeSession {
   sensation?: Sensation;
   comment?: string;
   strength?: StrengthSet[];
+  /** Sortie de course : distance, dénivelé, allure, temps. */
+  run?: RunLog;
   activityId?: number;
 }
 
@@ -227,7 +234,9 @@ export function recordFeedback(
         pain: fb.pain ?? "aucune",
         durationMin: positive(fb.durationMin) && Math.round(fb.durationMin!),
         comment: fb.comment?.trim() || undefined,
-        strength: cleanStrength(fb.strength),
+        ...(fb.doneType ? { doneType: fb.doneType } : {}),
+        run: fb.doneType === "course" || (!fb.doneType && fb.run) ? cleanRun(fb.run) : undefined,
+        strength: fb.doneType === "course" ? undefined : cleanStrength(fb.strength),
         sensation: fb.sensation,
         activityId: fb.activityId,
       }

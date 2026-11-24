@@ -1,5 +1,6 @@
 "use client";
 
+import { DONE_TYPE_LABEL, runSummary } from "@/lib/runLog";
 import { useState } from "react";
 import { sessionDescription, type Session } from "@/engine";
 import { formatLong, type ISODate } from "@/lib/dates";
@@ -185,6 +186,16 @@ export function SessionPanel({
                       · {SENSATION_LABEL[fb.sensation].toLowerCase()}
                     </span>
                   )}
+                  {fb.doneType && (
+                    <span className="block text-muted">{DONE_TYPE_LABEL[fb.doneType]}</span>
+                  )}
+                  {fb.run && <span className="block text-muted">{runSummary(fb.run)}</span>}
+                  {fb.strength?.map((r) => (
+                    <span key={r.exercise} className="block text-muted">
+                      {r.exercise} · {r.sets} × {r.reps}
+                      {r.loadKg > 0 && ` · ${String(r.loadKg).replace(".", ",")} kg`}
+                    </span>
+                  ))}
                 </>
               ) : (
                 <>
